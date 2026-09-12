@@ -9,9 +9,9 @@ import {
 import { BudgetsService } from './budgets.service.js';
 import { CreateBudgetDto } from './dto/budgets.dto.js';
 import { BudgetEntity } from './entities/budget.entity.js';
-import { CurrentFamily } from '../../common/decorators/current-family.decorator.js';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
+import { CurrentFamily } from '@/common/decorators/current-family.decorator.js';
+import { CurrentUser } from '@/common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '@/common/types/authenticated-user.js';
 
 @ApiTags('budgets')
 @ApiBearerAuth()

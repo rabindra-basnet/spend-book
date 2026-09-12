@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service.js';
+import { PrismaService } from '@/database/prisma.service.js';
 import { CreateBudgetDto } from './dto/budgets.dto.js';
 
 @Injectable()
