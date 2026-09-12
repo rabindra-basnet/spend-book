@@ -1,11 +1,13 @@
 import { createRequire } from 'node:module';
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { configuration } from './config/configuration.js';
 import { validate } from './config/validation.schema.js';
 import { FeaturesModule } from './modules/features.module.js';
-import { PrismaModule } from './database/prisma.module.js';
+import { PrismaModule } from '@/database/prisma.module';
 
 const require = createRequire(import.meta.url);
 
@@ -18,6 +20,12 @@ const require = createRequire(import.meta.url);
       validate,
       envFilePath: ['.env', '.env.local'],
     }),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     PrismaModule,
     FeaturesModule,
     LoggerModule.forRootAsync({
@@ -51,6 +59,12 @@ const require = createRequire(import.meta.url);
         };
       },
     }),
+  ],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
   ],
 })
 export class AppModule {}
