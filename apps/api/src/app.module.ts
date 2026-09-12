@@ -1,10 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
 import { configuration } from './config/configuration.js';
 import { validate } from './config/validation.schema.js';
-import { HealthModule } from './modules/health/health.module.js';
+import { FeaturesModule } from './modules/features.module.js';
 import { PrismaModule } from './database/prisma.module.js';
 
 @Module({
@@ -17,9 +15,7 @@ import { PrismaModule } from './database/prisma.module.js';
       envFilePath: ['.env', '.env.local'],
     }),
     PrismaModule,
-    HealthModule,
+    FeaturesModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
