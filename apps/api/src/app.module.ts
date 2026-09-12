@@ -1,4 +1,3 @@
-import { createRequire } from 'node:module';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -7,9 +6,8 @@ import { LoggerModule } from 'nestjs-pino';
 import { configuration } from './config/configuration.js';
 import { validate } from './config/validation.schema.js';
 import { FeaturesModule } from './modules/features.module.js';
-import { PrismaModule } from '@/database/prisma.module';
+import { PrismaModule } from './database/prisma.module.js';
 
-const require = createRequire(import.meta.url);
 
 @Module({
   imports: [

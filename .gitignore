@@ -3,7 +3,7 @@ dist/
 .turbo/
 build/
 coverage/
-apps/api/src/database/generated/
+!apps/api/src/database/generated/
 *.log
 logs/
 .env

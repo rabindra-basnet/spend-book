@@ -23,6 +23,7 @@ export interface AppConfig {
   domain: string;
   productName: string;
   brandName: string;
+  hideHeaders: string[];
 }
 
 export interface SmtpConfig {
@@ -196,6 +197,9 @@ export const configuration = (): Configuration => ({
     domain: process.env.APP_DOMAIN ?? '',
     productName: process.env.PRODUCT_NAME ?? 'Spend Book',
     brandName: process.env.BRAND_NAME ?? 'Spend Book',
+    hideHeaders: parseCommaList(
+      process.env.HIDE_HEADERS ?? 'x-powered-by,server',
+    ),
   },
   smtp: {
     address: process.env.SMTP_ADDRESS ?? '',

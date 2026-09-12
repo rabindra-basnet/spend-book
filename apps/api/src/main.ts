@@ -14,6 +14,20 @@ async function bootstrap() {
     exclude: [{ path: 'health', method: RequestMethod.GET }],
   });
 
+  const config = app.get(ConfigService);
+  const port = config.getOrThrow<number>('port');
+  const hideHeaders = config.get<string[]>('app.hideHeaders') ?? ['x-powered-by', 'server'];
+
+  const httpAdapter = app.getHttpAdapter();
+  const instance =
+    'instance' in httpAdapter ? httpAdapter.getInstance?.() : httpAdapter;
+
+  if (instance && typeof instance.disable === 'function') {
+    for (const header of hideHeaders) {
+      instance.disable(header.toLowerCase());
+    }
+  }
+
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -25,13 +39,9 @@ async function bootstrap() {
     }),
   );
   app.useGlobalInterceptors(
-    new LoggingInterceptor(),
     new LoggerErrorInterceptor(),
   );
   app.useLogger(app.get(PinoLogger));
-
-  const config = app.get(ConfigService);
-  const port = config.getOrThrow<number>('port');
 
   const swagger = new DocumentBuilder()
     .setTitle(config.getOrThrow<string>('app.productName'))

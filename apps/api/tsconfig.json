@@ -25,6 +25,12 @@
       "@database/*": ["./src/database/*"],
       "@queues/*": ["./src/queues/*"]
     },
-    "types": ["vitest/globals", "node"]
-  }
+    "types": ["vitest/globals", "node", "@types/multer"]
+  },
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/database/generated",
+    "**/generated/**"
+  ]
 }

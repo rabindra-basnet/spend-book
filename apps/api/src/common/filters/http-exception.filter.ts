@@ -49,10 +49,8 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     if (exception instanceof Prisma.PrismaClientKnownRequestError) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        body: HttpExceptionFilter.parsePrismaError(exception),
-      };
+      const { status, body } = HttpExceptionFilter.parsePrismaError(exception);
+      return { status, body };
     }
 
     return {
@@ -94,42 +92,52 @@ export class HttpExceptionFilter implements ExceptionFilter {
 
   private static parsePrismaError(
     error: Prisma.PrismaClientKnownRequestError,
-  ): ApiErrorBody {
+  ): { status: number; body: ApiErrorBody } {
     switch (error.code) {
       case 'P2002':
         return {
-          success: false,
-          error: {
-            code: 'unique_constraint_violation',
-            message: 'A record with the same unique value already exists',
-            details: error.meta,
+          status: HttpStatus.BAD_REQUEST,
+          body: {
+            success: false,
+            error: {
+              code: 'unique_constraint_violation',
+              message: 'A record with the same unique value already exists',
+              details: error.meta ? { target: error.meta.target } : undefined,
+            },
           },
         };
       case 'P2003':
         return {
-          success: false,
-          error: {
-            code: 'foreign_key_violation',
-            message: 'The referenced record does not exist',
-            details: error.meta,
+          status: HttpStatus.BAD_REQUEST,
+          body: {
+            success: false,
+            error: {
+              code: 'foreign_key_violation',
+              message: 'The referenced record does not exist',
+              details: error.meta ? { field_name: error.meta.field_name } : undefined,
+            },
           },
         };
       case 'P2025':
         return {
-          success: false,
-          error: {
-            code: 'record_not_found',
-            message: 'The requested record was not found',
-            details: error.meta,
+          status: HttpStatus.NOT_FOUND,
+          body: {
+            success: false,
+            error: {
+              code: 'record_not_found',
+              message: 'The requested record was not found',
+            },
           },
         };
       default:
         return {
-          success: false,
-          error: {
-            code: 'database_error',
-            message: 'A database error occurred',
-            details: error.meta,
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          body: {
+            success: false,
+            error: {
+              code: 'database_error',
+              message: 'A database operation failed',
+            },
           },
         };
     }

@@ -5,13 +5,16 @@ import {
   ApiOperation,
   ApiOkResponse,
   ApiCreatedResponse,
+  ApiBadRequestResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { BudgetsService } from './budgets.service.js';
 import { CreateBudgetDto } from './dto/budgets.dto.js';
 import { BudgetEntity } from './entities/budget.entity.js';
-import { CurrentFamily } from '@/common/decorators/current-family.decorator.js';
-import { CurrentUser } from '@/common/decorators/current-user.decorator.js';
-import type { AuthenticatedUser } from '@/common/types/authenticated-user.js';
+import { ApiErrorResponseEntity } from '../../common/entities/api-error-response.entity.js';
+import { CurrentFamily } from '../../common/decorators/current-family.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 
 @ApiTags('budgets')
 @ApiBearerAuth()
@@ -22,6 +25,10 @@ export class BudgetsController {
   @Get()
   @ApiOperation({ summary: 'List family & personal budgets' })
   @ApiOkResponse({ type: [BudgetEntity] })
+  @ApiUnauthorizedResponse({
+    type: ApiErrorResponseEntity,
+    description: 'Unauthorized access',
+  })
   listBudgets(
     @CurrentFamily() familyId: string,
     @CurrentUser() user: AuthenticatedUser,
@@ -32,6 +39,14 @@ export class BudgetsController {
   @Post()
   @ApiOperation({ summary: 'Create a budget with category allocations' })
   @ApiCreatedResponse({ type: BudgetEntity })
+  @ApiBadRequestResponse({
+    type: ApiErrorResponseEntity,
+    description: 'Validation error (e.g. invalid categoryId UUID format)',
+  })
+  @ApiUnauthorizedResponse({
+    type: ApiErrorResponseEntity,
+    description: 'Unauthorized access',
+  })
   createBudget(
     @CurrentFamily() familyId: string,
     @CurrentUser() user: AuthenticatedUser,

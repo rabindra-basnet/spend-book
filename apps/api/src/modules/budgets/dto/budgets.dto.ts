@@ -5,19 +5,26 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateBudgetCategoryDto {
-  @ApiProperty()
-  @IsString()
+  @ApiProperty({ description: 'Category UUID' })
+  @IsUUID()
   @IsNotEmpty()
   categoryId!: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional({ description: 'Allocated budget amount (alias for budgetedSpending)' })
+  @IsOptional()
   @IsNumber()
-  allocatedAmount!: number;
+  allocatedAmount?: number;
+
+  @ApiPropertyOptional({ description: 'Budgeted spending amount' })
+  @IsOptional()
+  @IsNumber()
+  budgetedSpending?: number;
 }
 
 export class CreateBudgetDto {

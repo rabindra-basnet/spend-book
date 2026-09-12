@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@/database/prisma.service.js';
+import { PrismaService } from '../../database/prisma.service.js';
 import { CreateBudgetDto } from './dto/budgets.dto.js';
 
 @Injectable()
@@ -37,8 +37,7 @@ export class BudgetsService {
           ? {
               create: dto.categories.map((c) => ({
                 categoryId: c.categoryId,
-                allocatedAmount: c.allocatedAmount,
-                budgetedSpending: c.allocatedAmount,
+                budgetedSpending: c.allocatedAmount ?? c.budgetedSpending ?? 0,
                 currency: dto.currency ?? 'USD',
               })),
             }
