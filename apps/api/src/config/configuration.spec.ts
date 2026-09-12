@@ -17,6 +17,7 @@ describe('configuration factory', () => {
       POSTGRES_USER: 'sure',
       POSTGRES_PASSWORD: 'pw',
     };
+    delete process.env.DATABASE_URL;
     expect(configuration().database.url).toBe(
       'postgresql://sure:pw@db.example.com:5433/sure_selfhost',
     );
@@ -29,6 +30,8 @@ describe('configuration factory', () => {
 
   it('applies defaults for optional groups', () => {
     process.env = { ...originalEnv };
+    delete process.env.DATABASE_URL;
+    delete process.env.REDIS_URL;
     const config = configuration();
     expect(config.port).toBe(3000);
     expect(config.redis.url).toBe('redis://localhost:6379/1');
