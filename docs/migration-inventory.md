@@ -208,4 +208,5 @@ Prompt-2-dependent surfaces (Lookbook design system, PWA shell, marketing pages,
 | Milestone | Status | Notes |
 |---|---|---|
 | M0 Discovery & Inventory | Done (PR #79) | Docs above; board + milestones/issues wired |
-| M1 Bootstrap with Nest CLI | Done (this PR) | `apps/api` via `nest new` (Nest 12, strict TS template); package manager nub; lint=oxlint + Prettier, test=Vitest (template defaults); production folder layout created; `GET /health` live; `nub run dev` runs it |
+| M1 Bootstrap with Nest CLI | Done (PR #80) | `apps/api` via `nest new` (Nest 12, strict TS template); package manager nub; lint=oxlint + Prettier, test=Vitest (template defaults); production folder layout created; `GET /health` live; `nub run dev` runs it |
+| M2 Config module | Done (this PR) | Typed `configuration()` factory + class-validator `validation.schema.ts` covering the env contract of Sure's `.env.example`; `ConfigModule.forRoot({ isGlobal, load, validate })`; `SECRET_KEY_BASE` required outside tests; fail-fast with readable errors; `apps/api/.env.example` as runnable baseline; `main.ts` reads typed port via `ConfigService` |
