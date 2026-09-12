@@ -69,6 +69,14 @@ export class EnvironmentVariables {
   REDIS_URL?: string;
 
   @IsOptional()
+  @IsNumberString()
+  JWT_ACCESS_TTL_SECONDS?: string;
+
+  @IsOptional()
+  @IsNumberString()
+  JWT_REFRESH_TTL_SECONDS?: string;
+
+  @IsOptional()
   @IsString()
   APP_DOMAIN?: string;
 

@@ -3,10 +3,10 @@ dist/
 .turbo/
 build/
 coverage/
+apps/api/src/database/generated/
 *.log
 .env
 .env.*
 !.env.example
 .DS_Store
-prompt.md
 *.tsbuildinfo

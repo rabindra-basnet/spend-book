@@ -1,11 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, RequestMethod } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
+import { Server } from 'node:http';
 import { AppModule } from './../src/app.module.js';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App (e2e)', () => {
+  let app: INestApplication<Server>;
 
   beforeEach(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -13,14 +13,21 @@ describe('AppController (e2e)', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api/v1', {
+      exclude: [{ path: 'health', method: RequestMethod.GET }],
+    });
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  it('/health (GET) stays outside the api/v1 prefix', () => {
     return request(app.getHttpServer())
-      .get('/')
+      .get('/health')
       .expect(200)
-      .expect('Hello World!');
+      .expect({ status: 'ok' });
+  });
+
+  it('/api/v1 (GET) responds once the API surface exists', () => {
+    return request(app.getHttpServer()).get('/api/v1').expect(404);
   });
 
   afterEach(async () => {
