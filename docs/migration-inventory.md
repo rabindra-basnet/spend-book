@@ -203,3 +203,9 @@ Queue priorities ported as-is: `scheduled(10) > high_priority(4) > medium_priori
 ## 7. Backend scope cut (Parity checklist drives completion)
 
 Prompt-2-dependent surfaces (Lookbook design system, PWA shell, marketing pages, Sidekiq Web) are flagged "frontend/ops, no Nest controller". Admin, impersonation, SSO provider CRUD, and Doorkeeper OAuth registration are flagged "post-MVP" in the parity checklist once it becomes a row-by-row artifact in `docs/parity-checklist.md`.
+## 8. Milestone progress
+
+| Milestone | Status | Notes |
+|---|---|---|
+| M0 Discovery & Inventory | Done (PR #79) | Docs above; board + milestones/issues wired |
+| M1 Bootstrap with Nest CLI | Done (this PR) | `apps/api` via `nest new` (Nest 12, strict TS template); package manager nub; lint=oxlint + Prettier, test=Vitest (template defaults); production folder layout created; `GET /health` live; `nub run dev` runs it |

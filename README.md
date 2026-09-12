@@ -13,7 +13,7 @@ The full migration plan lives in `prompt.md` (kept locally, not tracked).
 | --- | --- |
 | Monorepo | [Turborepo](https://turborepo.dev) |
 | Package manager | [nub](https://nub.dev) (`nub@0.9.0`) |
-| Test runner | Jest (workspace-level) |
+| Test runner | Vitest (workspace-level) |
 | Git | Conventional Commits, one branch/PR per milestone |
 
 ## Prerequisites
@@ -28,6 +28,30 @@ nub install        # install workspace dependencies
 nub run build      # build all packages
 nub run dev        # run all dev servers
 ```
+
+### Running the API locally
+
+```bash
+# from the repo root (via Turborepo)
+nub run dev        # runs apps/api on http://localhost:3000
+
+# or directly inside apps/api
+nub run start:dev  # hot-reload dev server
+
+# verify
+curl http://localhost:3000/health   # -> {"status":"ok"}
+```
+
+Checks for `apps/api` (same scripts Turbo runs from the root):
+
+```bash
+nub run lint       # oxlint + prettier (Nest 12 template defaults)
+nub run build      # strict-tsc + nest build
+nub run test       # vitest unit tests
+nub run test:e2e   # vitest e2e (supertest)
+```
+
+>`PORT` env var is honored by `src/main.ts` (default `3000`). Postgres/Redis are not needed until Milestones 3/4.
 
 ## Repository layout
 
