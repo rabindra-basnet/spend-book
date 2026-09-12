@@ -47,6 +47,10 @@ export interface AuthConfig {
     issuer: string;
     redirectUri: string;
   };
+  jwt: {
+    accessTokenTtlSeconds: number;
+    refreshTokenTtlSeconds: number;
+  };
 }
 
 export interface AiConfig {
@@ -185,6 +189,10 @@ export const configuration = (): Configuration => ({
     webauthnRpId: process.env.WEBAUTHN_RP_ID ?? '',
     webauthnAllowedOrigins: parseCommaList(process.env.WEBAUTHN_ALLOWED_ORIGINS),
     passkeyLoginEnabled: parseBool(process.env.AUTH_PASSKEY_LOGIN_ENABLED ?? 'true'),
+    jwt: {
+      accessTokenTtlSeconds: parseIntStrict(process.env.JWT_ACCESS_TTL_SECONDS, 900),
+      refreshTokenTtlSeconds: parseIntStrict(process.env.JWT_REFRESH_TTL_SECONDS, 2_592_000),
+    },
     oidc: {
       clientId: process.env.OIDC_CLIENT_ID ?? '',
       clientSecret: process.env.OIDC_CLIENT_SECRET ?? '',

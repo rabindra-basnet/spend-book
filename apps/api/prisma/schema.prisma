@@ -363,9 +363,12 @@ model Session {
   activeImpersonatorSessionId String?  @db.Uuid
   createdAt                   DateTime @default(now())
   data                        Json?    @default("{}")
+  expiresAt                   DateTime?
   ipAddress                   String?  @db.VarChar(255)
   ipAddressDigest             String?  @db.VarChar(255)
   prevTransactionPageParams   Json?    @default("{}")
+  refreshTokenDigest          String?  @db.Text
+  revokedAt                   DateTime?
   subscribedAt                DateTime?
   updatedAt                   DateTime @updatedAt
   userAgent                   String?  @db.VarChar(255)
@@ -377,6 +380,7 @@ model Session {
   @@index([activeImpersonatorSessionId], map: "index_sessions_on_active_impersonator_session_id")
   @@index([ipAddressDigest], map: "index_sessions_on_ip_address_digest")
   @@index([userId], map: "index_sessions_on_user_id")
+  @@unique([refreshTokenDigest], map: "index_sessions_on_refresh_token_digest")
   @@map("sessions")
 }
 
