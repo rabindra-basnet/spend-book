@@ -355,7 +355,6 @@ model InviteCode {
   updatedAt   DateTime @updatedAt
 
   @@unique([token], map: "index_invite_codes_on_token")
-  @@index([tokenDigest], map: "index_invite_codes_on_token_digest")
   @@map("invite_codes")
 }
 
@@ -600,8 +599,8 @@ model AccountStatement {
   matchConfidence       Decimal?                       @db.Decimal(5, 4)
   openingBalance        Decimal?                       @db.Decimal(19, 4)
   parserConfidence      Decimal?                       @db.Decimal(5, 4)
-  periodEndOn           DateTime?
-  periodStartOn         DateTime?
+  periodEndOn           DateTime?                      @db.Date
+  periodStartOn         DateTime?                      @db.Date
   reviewStatus          AccountStatementReviewStatus   @default(unmatched)
   sanitizedParserOutput Json                           @default("{}")
   source                String                         @default("manual_upload") @db.VarChar(255)
@@ -715,16 +714,16 @@ model Balance {
   cashOutflows      Decimal  @default("0") @db.Decimal(19, 4)
   createdAt         DateTime @default(now())
   currency          String   @default("USD")
-  date              DateTime
-  endBalance        Decimal?
-  endCashBalance    Decimal?
-  endNonCashBalance Decimal?
+  date              DateTime @db.Date
+  endBalance        Decimal? @db.Decimal(19, 4)
+  endCashBalance    Decimal? @db.Decimal(19, 4)
+  endNonCashBalance Decimal? @db.Decimal(19, 4)
   flowsFactor       Int      @default(1)
   netMarketFlows    Decimal  @default("0") @db.Decimal(19, 4)
   nonCashAdjustments Decimal @default("0") @db.Decimal(19, 4)
   nonCashInflows    Decimal  @default("0") @db.Decimal(19, 4)
   nonCashOutflows   Decimal  @default("0") @db.Decimal(19, 4)
-  startBalance      Decimal?
+  startBalance      Decimal? @db.Decimal(19, 4)
   startCashBalance  Decimal  @default("0") @db.Decimal(19, 4)
   startNonCashBalance Decimal @default("0") @db.Decimal(19, 4)
   updatedAt         DateTime @updatedAt
@@ -743,7 +742,7 @@ model CreditCard {
   apr              Decimal? @db.Decimal(10, 2)
   availableCredit  Decimal? @db.Decimal(10, 2)
   createdAt        DateTime @default(now())
-  expirationDate   DateTime?
+  expirationDate   DateTime? @db.Date
   lockedAttributes Json?    @default("{}")
   minimumPayment   Decimal? @db.Decimal(10, 2)
   subtype          String?
@@ -776,7 +775,7 @@ model Depository {
 model ExchangeRatePair {
   id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt           DateTime @default(now())
-  firstProviderRateOn DateTime?
+  firstProviderRateOn DateTime? @db.Date
   fromCurrency        String
   providerName        String?
   toCurrency          String
@@ -789,7 +788,7 @@ model ExchangeRatePair {
 model ExchangeRate {
   id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt    DateTime @default(now())
-  date         DateTime
+  date         DateTime @db.Date
   fromCurrency String
   rate         Decimal
   toCurrency   String
@@ -811,7 +810,7 @@ model Holding {
   costBasisSource   String?
   createdAt         DateTime @default(now())
   currency          String
-  date              DateTime
+  date              DateTime @db.Date
   externalId        String?
   price             Decimal  @db.Decimal(19, 4)
   providerSecurityId String? @db.Uuid
@@ -880,7 +879,7 @@ model Property {
   id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   areaUnit         String?
   areaValue        Int?
-  avmLastSyncedOn  DateTime?
+  avmLastSyncedOn  DateTime? @db.Date
   avmProvider      AvmProvider?
   createdAt        DateTime   @default(now())
   lockedAttributes Json?      @default("{}")
@@ -901,7 +900,7 @@ model Security {
   exchangeOperatingMic  String?
   failedFetchAt         DateTime?
   failedFetchCount      Int         @default(0)
-  firstProviderPriceOn  DateTime?
+  firstProviderPriceOn  DateTime? @db.Date
   kind                  SecurityKind @default(standard)
   lastHealthCheckAt     DateTime?
   logoUrl               String?
@@ -929,7 +928,7 @@ model SecurityPrice {
   id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt  DateTime @default(now())
   currency   String   @default("USD")
-  date       DateTime
+  date       DateTime @db.Date
   price      Decimal  @db.Decimal(19, 4)
   provisional Boolean @default(false)
   securityId String?  @db.Uuid
@@ -998,7 +997,7 @@ model Entry {
   amount                   Decimal  @db.Decimal(19, 4)
   createdAt                DateTime @default(now())
   currency                 String?
-  date                     DateTime?
+  date                     DateTime? @db.Date
   entryableId              String?  @db.Uuid
   entryableType            String?
   excluded                 Boolean  @default(false)
@@ -1213,7 +1212,7 @@ model Rule {
   id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   active        Boolean  @default(false)
   createdAt     DateTime @default(now())
-  effectiveDate DateTime?
+  effectiveDate DateTime? @db.Date
   familyId      String   @db.Uuid
   name          String?
   resourceType  String
@@ -1307,10 +1306,10 @@ model RecurringTransaction {
   amount                  Decimal   @db.Decimal(19, 4)
   amountStrategy          String    @default("fixed")
   amountTolerancePct      Decimal   @default("7.5") @db.Decimal(5, 2)
-  anchorDate              DateTime?
+  anchorDate              DateTime? @db.Date
   autopay                 Boolean   @default(false)
   billType                String    @default("bill")
-  cancelledOn             DateTime?
+  cancelledOn             DateTime? @db.Date
   categoryId              String?   @db.Uuid
   createdAt               DateTime  @default(now())
   currency                String
@@ -1318,30 +1317,30 @@ model RecurringTransaction {
   destinationAccountId    String?   @db.Uuid
   endAfterCount           Int?
   endMode                 String    @default("never")
-  endOn                   DateTime?
+  endOn                   DateTime? @db.Date
   expectedAmountAvg       Decimal?  @db.Decimal(19, 4)
   expectedAmountMax       Decimal?  @db.Decimal(19, 4)
   expectedAmountMin       Decimal?  @db.Decimal(19, 4)
   expectedDayOfMonth      Int
   familyId                String    @db.Uuid
   holidayCalendar         String?
-  lastOccurrenceDate      DateTime
+  lastOccurrenceDate      DateTime @db.Date
   manual                  Boolean   @default(false)
   matchDaysEarly          Int       @default(2)
   matchDaysLate           Int       @default(7)
   matcherHints            Json      @default("{}")
   merchantId              String?   @db.Uuid
   name                    String?
-  nextExpectedDate        DateTime
+  nextExpectedDate        DateTime @db.Date
   notes                   String?   @db.Text
   notifyDaysBefore        Int?
   occurrenceCount         Int       @default(0)
   overdueGraceDays        Int?
   paymentUrl              String?
-  renewsOn                DateTime?
+  renewsOn                DateTime? @db.Date
   replacedById            String?   @db.Uuid
   status                  String    @default("active")
-  trialEndsOn             DateTime?
+  trialEndsOn             DateTime? @db.Date
   upcomingWindowDays      Int?
   updatedAt               DateTime  @updatedAt
   weekendAdjust           String    @default("none")
@@ -1393,13 +1392,13 @@ model RecurringOccurrence {
   closedSource           RecurringOccurrenceClosedSource?
   createdAt              DateTime                    @default(now())
   currency               String
-  dueOn                  DateTime
+  dueOn                  DateTime @db.Date
   expectedAmount         Decimal?                    @db.Decimal(19, 4)
   familyId               String                      @db.Uuid
   notes                  String?                     @db.Text
-  originalDueOn          DateTime
+  originalDueOn          DateTime @db.Date
   recurringTransactionId String                      @db.Uuid
-  snoozedUntil           DateTime?
+  snoozedUntil           DateTime? @db.Date
   status                 RecurringOccurrenceStatus   @default(scheduled)
   updatedAt              DateTime                    @updatedAt
 
@@ -1421,7 +1420,7 @@ model RecurringAllocation {
   entryId                String?                   @db.Uuid
   matchConfidence        Decimal?                  @db.Decimal(5, 4)
   matchSignals           Json                      @default("{}")
-  paidOn                 DateTime?
+  paidOn                 DateTime? @db.Date
   recurringOccurrenceId  String                    @db.Uuid
   source                 RecurringAllocationSource
   sourceAmount           Decimal?                  @db.Decimal(19, 4)
@@ -1457,7 +1456,7 @@ model RecurringPriceChange {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   createdAt              DateTime @default(now())
   currency               String
-  effectiveOn            DateTime
+  effectiveOn            DateTime @db.Date
   entryId                String?  @db.Uuid
   newAmount              Decimal  @db.Decimal(19, 4)
   previousAmount         Decimal  @db.Decimal(19, 4)
@@ -1478,10 +1477,10 @@ model Budget {
   budgetedSpending Decimal? @db.Decimal(19, 4)
   createdAt        DateTime @default(now())
   currency         String
-  endDate          DateTime
+  endDate          DateTime @db.Date
   expectedIncome   Decimal? @db.Decimal(19, 4)
   familyId         String   @db.Uuid
-  startDate        DateTime
+  startDate        DateTime @db.Date
   updatedAt        DateTime @updatedAt
   userId           String?  @db.Uuid
 
@@ -1547,7 +1546,7 @@ model Goal {
   progressBasis   GoalProgressBasis @default(balance)
   state           GoalState    @default(active)
   targetAmount    Decimal      @db.Decimal(19, 4)
-  targetDate      DateTime?
+  targetDate      DateTime? @db.Date
   targetMode      GoalTargetMode @default(fixed)
   targetMonths    Int?
   updatedAt       DateTime     @updatedAt
@@ -1835,8 +1834,8 @@ model Sync {
   syncableType     String
   syncingAt        DateTime?
   updatedAt        DateTime @updatedAt
-  windowEndDate    DateTime?
-  windowStartDate  DateTime?
+  windowEndDate    DateTime? @db.Date
+  windowStartDate  DateTime? @db.Date
 
   parent Sync?   @relation("SyncParent", fields: [parentId], references: [id], onDelete: Cascade)
   children Sync[] @relation("SyncParent")
@@ -1941,8 +1940,8 @@ model Insight {
   generatedAt  DateTime       @default(now())
   insightType  String         @default("")
   metadata     Json           @default("{}")
-  periodEnd    DateTime?
-  periodStart  DateTime?
+  periodEnd    DateTime? @db.Date
+  periodStart  DateTime? @db.Date
   priority     InsightPriority @default(medium)
   readAt       DateTime?
   status       InsightStatus  @default(active)
@@ -2216,10 +2215,10 @@ model VectorStoreChunk {
   content     String                        @db.Text
   createdAt   DateTime                      @default(now())
   embedding   Unsupported("vector(1024)")
-  fileId      String                        @default("")
+  fileId      String                        @db.Text
   filename    String?
   metadata    Json                          @default("{}")
-  storeId     String                        @default("")
+  storeId     String                        @db.Text
   updatedAt   DateTime                      @updatedAt
 
   @@index([storeId], map: "index_vector_store_chunks_on_store_id")
@@ -2248,7 +2247,7 @@ model AkahuItem {
   rawPayload        Json?
   scheduledForDeletion Boolean @default(false)
   status            String   @default("good")
-  syncStartDate     DateTime?
+  syncStartDate     DateTime? @db.Date
   updatedAt         DateTime @updatedAt
   userToken         String?  @db.Text
 
@@ -2273,7 +2272,7 @@ model AkahuAccount {
   provider              String?
   rawPayload            Json?
   rawTransactionsPayload Json?
-  syncStartDate         DateTime?
+  syncStartDate         DateTime? @db.Date
 
   @@index([accountId], map: "index_akahu_accounts_on_account_id")
   @@unique([akahuItemId, accountId], map: "index_akahu_accounts_on_item_and_account_id")
@@ -2492,7 +2491,7 @@ model EnableBankingItem {
   sessionExpiresAt          DateTime?
   sessionId                 String?
   status                    String   @default("good")
-  syncStartDate             DateTime?
+  syncStartDate             DateTime? @db.Date
   updatedAt                 DateTime @updatedAt
 
   @@index([familyId], map: "index_enable_banking_items_on_family_id")
@@ -2559,7 +2558,7 @@ model IbkrAccount {
   rawCashReportPayload  Json[]   @default([])
   rawEquitySummaryPayload Json[] @default([])
   rawHoldingsPayload    Json[]   @default([])
-  reportDate            DateTime?
+  reportDate            DateTime? @db.Date
   updatedAt             DateTime @updatedAt
 
   @@unique([ibkrItemId, ibkrAccountId], map: "index_ibkr_accounts_on_item_and_ibkr_account_id")
@@ -2613,7 +2612,7 @@ model IndexaCapitalAccount {
   rawActivitiesPayload      Json[]   @default([])
   rawHoldingsPayload        Json[]   @default([])
   rawPayload                Json?
-  syncStartDate             DateTime?
+  syncStartDate             DateTime? @db.Date
   updatedAt                 DateTime @updatedAt
 
   @@index([indexaCapitalAuthorizationId], map: "idx_on_indexa_capital_authorization_id_58db208d52")
@@ -2773,7 +2772,7 @@ model MonobankItem {
   rawPayload        Json?
   scheduledForDeletion Boolean @default(false)
   status            String   @default("good")
-  syncStartDate     DateTime?
+  syncStartDate     DateTime? @db.Date
   updatedAt         DateTime @updatedAt
 
   @@index([familyId], map: "index_monobank_items_on_family_id")
@@ -2801,7 +2800,7 @@ model MonobankAccount {
   rawPayload            Json?
   rawTransactionsPayload Json?
   statementSyncedThrough DateTime?
-  syncStartDate         DateTime?
+  syncStartDate         DateTime? @db.Date
   updatedAt             DateTime @updatedAt
 
   @@index([accountId], map: "index_monobank_accounts_on_account_id")
@@ -2947,7 +2946,7 @@ model QuestradeAccount {
   rawBalancesPayload    Json?
   rawHoldingsPayload    Json[]   @default([])
   rawPayload            Json?
-  syncStartDate         DateTime?
+  syncStartDate         DateTime? @db.Date
   updatedAt             DateTime @updatedAt
 
   @@index([questradeAuthorizationId], map: "index_questrade_accounts_on_questrade_authorization_id")
@@ -2996,7 +2995,7 @@ model RedbarkAccount {
   rawTransactionsPayload Json?
   redbarkAccountId      String
   redbarkItemId         String   @db.Uuid
-  syncStartDate         DateTime?
+  syncStartDate         DateTime? @db.Date
   updatedAt             DateTime @updatedAt
 
   @@unique([redbarkItemId, redbarkAccountId], map: "index_redbark_accounts_on_item_and_account_id")
@@ -3020,7 +3019,7 @@ model SimplefinItem {
   rawPayload        Json?
   scheduledForDeletion Boolean @default(false)
   status            String   @default("good")
-  syncStartDate     DateTime?
+  syncStartDate     DateTime? @db.Date
   updatedAt         DateTime @updatedAt
 
   @@index([familyId], map: "index_simplefin_items_on_family_id")
@@ -3111,7 +3110,7 @@ model SnaptradeAccount {
   snaptradeAccountId    String?
   snaptradeAuthorizationId String?
   snaptradeItemId       String   @db.Uuid
-  syncStartDate         DateTime?
+  syncStartDate         DateTime? @db.Date
   updatedAt             DateTime @updatedAt
 
   @@unique([snaptradeItemId, snaptradeAccountId], map: "index_snaptrade_accounts_on_item_and_snaptrade_account_id")
@@ -3284,7 +3283,7 @@ model UpItem {
   rawPayload        Json?
   scheduledForDeletion Boolean @default(false)
   status            String   @default("good")
-  syncStartDate     DateTime?
+  syncStartDate     DateTime? @db.Date
   updatedAt         DateTime @updatedAt
 
   @@index([familyId], map: "index_up_items_on_family_id")
@@ -3306,7 +3305,7 @@ model UpAccount {
   provider              String?
   rawPayload            Json?
   rawTransactionsPayload Json?
-  syncStartDate         DateTime?
+  syncStartDate         DateTime? @db.Date
   upItemId              String   @db.Uuid
   updatedAt             DateTime @updatedAt
 
