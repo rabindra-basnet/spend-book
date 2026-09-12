@@ -22,7 +22,7 @@ describe('RulesService', () => {
   it('evaluates equals condition', () => {
     const condition = {
       operator: 'equals',
-      property: 'name',
+      conditionType: 'name',
       value: 'Starbucks',
     };
     expect(
@@ -36,7 +36,7 @@ describe('RulesService', () => {
   it('evaluates contains condition case insensitively', () => {
     const condition = {
       operator: 'contains',
-      property: 'name',
+      conditionType: 'name',
       value: 'coffee',
     };
     expect(
@@ -50,7 +50,7 @@ describe('RulesService', () => {
   it('evaluates greater_than amount condition', () => {
     const condition = {
       operator: 'greater_than',
-      property: 'amount',
+      conditionType: 'amount',
       value: '100',
     };
     expect(

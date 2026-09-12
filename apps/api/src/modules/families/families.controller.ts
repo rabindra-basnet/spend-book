@@ -4,19 +4,26 @@ import {
   Patch,
   Post,
   Delete,
-  Body,
   Param,
+  Body,
 } from '@nestjs/common';
-import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import {
-  FamiliesService,
+  ApiTags,
+  ApiBearerAuth,
+  ApiOperation,
+  ApiOkResponse,
+  ApiCreatedResponse,
+} from '@nestjs/swagger';
+import { FamiliesService } from './families.service.js';
+import {
   CreateInvitationDto,
   UpdateFamilySettingsDto,
-} from './families.service.js';
-import { CurrentFamily } from '../../common/decorators/current-family.decorator.js';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
-import { Public } from '../../common/decorators/public.decorator.js';
+} from './dto/families.dto.js';
+import { FamilyEntity } from './entities/family.entity.js';
+import { CurrentFamily } from '@/common/decorators/current-family.decorator.js';
+import { CurrentUser } from '@/common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '@/common/types/authenticated-user.js';
+import { Public } from '@/common/decorators/public.decorator.js';
 
 @ApiTags('families')
 @ApiBearerAuth()

@@ -9,7 +9,7 @@ export class MerchantsService {
   async listMerchants(familyId: string) {
     return this.prisma.merchant.findMany({
       where: {
-        familyAssociations: {
+        familyMerchantAssociations: {
           some: { familyId },
         },
       },
@@ -29,6 +29,7 @@ export class MerchantsService {
       merchant = await this.prisma.merchant.create({
         data: {
           name: trimmed,
+          type: 'FamilyMerchant',
         },
       });
     }

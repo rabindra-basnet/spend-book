@@ -48,9 +48,12 @@ export class GoalsService {
     return this.prisma.goalPledge.create({
       data: {
         goalId: goal.id,
+        accountId: goal.id,
         amount: dto.amount,
         kind: dto.kind ?? 'manual_save',
         status: 'open',
+        currency: goal.currency ?? 'USD',
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       },
     });
   }

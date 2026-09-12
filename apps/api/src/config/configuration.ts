@@ -109,6 +109,10 @@ export interface ObservabilityConfig {
   skylightEnabled: string;
 }
 
+export interface LoggingConfig {
+  filePath: string;
+}
+
 export interface Configuration {
   nodeEnv: string;
   port: number;
@@ -122,6 +126,7 @@ export interface Configuration {
   storage: StorageConfig;
   marketData: MarketDataConfig;
   observability: ObservabilityConfig;
+  logging: LoggingConfig;
 }
 
 const parseBool = (value: string | undefined): boolean =>

@@ -31,7 +31,8 @@ const require = createRequire(import.meta.url);
         if (isTest) {
           transport = undefined;
         } else if (isSelfHosted || process.env.LOG_FILE_PATH || !isProd) {
-          const destination = process.env.LOG_FILE_PATH || `${process.cwd()}/logs/app.log`;
+          const destination =
+            process.env.LOG_FILE_PATH || `${process.cwd()}/logs/app.log`;
           transport = {
             target: 'pino/file',
             options: { destination, mkdir: true },

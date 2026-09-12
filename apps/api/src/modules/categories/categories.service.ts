@@ -14,7 +14,7 @@ export class CategoriesService {
     return this.prisma.category.findMany({
       where: { familyId, parentId: null },
       include: {
-        childrenCategories: true,
+        children: true,
       },
       orderBy: { name: 'asc' },
     });
@@ -41,9 +41,9 @@ export class CategoriesService {
       data: {
         familyId,
         name: dto.name,
-        color: dto.color ?? null,
-        icon: dto.icon ?? null,
-        parentId: dto.parentId ?? null,
+        color: dto.color,
+        icon: dto.icon,
+        parentId: dto.parentId,
       },
     });
   }

@@ -4,20 +4,11 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service.js';
-
-export interface CreateInvitationDto {
-  email: string;
-  role?: string;
-}
-
-export interface UpdateFamilySettingsDto {
-  name?: string;
-  currency?: string;
-  country?: string;
-  locale?: string;
-  timezone?: string;
-}
+import { PrismaService } from '@/database/prisma.service.js';
+import {
+  CreateInvitationDto,
+  UpdateFamilySettingsDto,
+} from './dto/families.dto.js';
 
 @Injectable()
 export class FamiliesService {
@@ -93,7 +84,7 @@ export class FamiliesService {
         where: { id: userId },
         data: {
           familyId: invitation.familyId,
-          role: invitation.role,
+          role: invitation.role ?? 'member',
         },
       }),
       this.prisma.invitation.delete({

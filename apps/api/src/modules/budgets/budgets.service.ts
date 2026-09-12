@@ -30,13 +30,16 @@ export class BudgetsService {
       data: {
         familyId,
         userId: dto.isPersonal ? userId : null,
-        name: dto.name,
         currency: dto.currency ?? 'USD',
+        startDate: new Date(),
+        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
         budgetCategories: dto.categories
           ? {
               create: dto.categories.map((c) => ({
                 categoryId: c.categoryId,
                 allocatedAmount: c.allocatedAmount,
+                budgetedSpending: c.allocatedAmount,
+                currency: dto.currency ?? 'USD',
               })),
             }
           : undefined,

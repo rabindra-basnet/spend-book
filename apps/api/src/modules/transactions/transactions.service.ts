@@ -145,16 +145,27 @@ export class TransactionsService {
     }
 
     return this.prisma.$transaction(async (tx) => {
+      const outflowTransaction = await tx.transaction.create({
+        data: {},
+      });
+      const inflowTransaction = await tx.transaction.create({
+        data: {},
+      });
+
       const transferRecord = await tx.transfer.create({
         data: {
           amount: dto.amount,
+          outflowTransactionId: outflowTransaction.id,
+          inflowTransactionId: inflowTransaction.id,
         },
       });
 
-      const outflowTransaction = await tx.transaction.create({
+      await tx.transaction.update({
+        where: { id: outflowTransaction.id },
         data: { transferId: transferRecord.id },
       });
-      const inflowTransaction = await tx.transaction.create({
+      await tx.transaction.update({
+        where: { id: inflowTransaction.id },
         data: { transferId: transferRecord.id },
       });
 
