@@ -18,9 +18,13 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { StorageModule } from './storage/storage.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
+import { PingModule } from '../queues/ping.module.js';
+import { QueuesModule } from '../queues/queues.module.js';
 
 @Module({
   imports: [
+    QueuesModule,
+    PingModule,
     HealthModule,
     AuthModule,
     UsersModule,

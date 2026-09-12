@@ -6,6 +6,12 @@ export interface DatabaseConfig {
 export interface RedisConfig {
   /** Provided by REDIS_URL (Sentinel config is out of scope until Milestone 4). */
   url: string;
+  host: string;
+  port: number;
+  username?: string;
+  password?: string;
+  /** TLS options for rediss:// endpoints. */
+  tls?: { rejectUnauthorized: boolean };
 }
 
 export interface SecretsConfig {
@@ -115,6 +121,34 @@ const parseCommaList = (value: string | undefined): string[] =>
         .filter(Boolean)
     : [];
 
+const redisConfig = (value: string | undefined): RedisConfig => {
+  if (!value) {
+    return {
+      url: 'redis://localhost:6379/1',
+      host: 'localhost',
+      port: 6379,
+    };
+  }
+  try {
+    const uri = new URL(value);
+    const isTls = uri.protocol === 'rediss:';
+    return {
+      url: value,
+      host: uri.hostname,
+      port: Number.parseInt(uri.port, 10) || 6379,
+      username: uri.username ? decodeURIComponent(uri.username) : undefined,
+      password: uri.password ? decodeURIComponent(uri.password) : undefined,
+      tls: isTls ? { rejectUnauthorized: false } : undefined,
+    };
+  } catch {
+    return {
+      url: value,
+      host: 'localhost',
+      port: 6379,
+    };
+  }
+};
+
 const databaseUrl = (): string =>
   process.env.DATABASE_URL ??
   `postgresql://${process.env.POSTGRES_USER ?? 'postgres'}:${process.env.POSTGRES_PASSWORD ?? ''}@${
@@ -127,9 +161,7 @@ export const configuration = (): Configuration => ({
   database: {
     url: databaseUrl(),
   },
-  redis: {
-    url: process.env.REDIS_URL ?? 'redis://localhost:6379/1',
-  },
+  redis: redisConfig(process.env.REDIS_URL),
   secrets: {
     sessionJwt: process.env.SECRET_KEY_BASE ?? '',
   },
