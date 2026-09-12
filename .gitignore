@@ -9,5 +9,4 @@ apps/api/src/database/generated/
 .env.*
 !.env.example
 .DS_Store
-prompt.md
 *.tsbuildinfo
