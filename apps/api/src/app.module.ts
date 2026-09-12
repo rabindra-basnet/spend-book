@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { LoggerModule } from 'nestjs-pino';
 import { configuration } from './config/configuration.js';
 import { validate } from './config/validation.schema.js';
@@ -20,20 +20,34 @@ const require = createRequire(import.meta.url);
     }),
     PrismaModule,
     FeaturesModule,
-    LoggerModule.forRoot({
-      pinoHttp: {
-        level: process.env.NODE_ENV === 'test' ? 'silent' : 'info',
-        redact: {
-          paths: ['req.headers.authorization', 'req.headers.cookie'],
-          censor: '[REDACTED]',
-        },
-        transport:
-          process.env.NODE_ENV === 'production'
-            ? undefined
-            : {
-                target: require.resolve('pino-pretty'),
-                options: { singleLine: true, colorize: true },
-              },
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const isTest = process.env.NODE_ENV === 'test';
+        const isProd = process.env.NODE_ENV === 'production';
+        const isSelfHosted = config.get<boolean>('auth.selfHosted') ?? false;
+
+        let transport: any;
+        if (isTest) {
+          transport = undefined;
+        } else if (isSelfHosted || process.env.LOG_FILE_PATH || !isProd) {
+          const destination = process.env.LOG_FILE_PATH || `${process.cwd()}/logs/app.log`;
+          transport = {
+            target: 'pino/file',
+            options: { destination, mkdir: true },
+          };
+        }
+
+        return {
+          pinoHttp: {
+            level: isTest ? 'silent' : 'info',
+            redact: {
+              paths: ['req.headers.authorization', 'req.headers.cookie'],
+              censor: '[REDACTED]',
+            },
+            transport,
+          },
+        };
       },
     }),
   ],

@@ -8,7 +8,10 @@ import { PoliciesGuard } from '../../common/guards/policies.guard.js';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
-import { CHALLENGE_STORE, RedisChallengeStore } from './challenge-store.service.js';
+import {
+  CHALLENGE_STORE,
+  RedisChallengeStore,
+} from './challenge-store.service.js';
 import { JwtStrategy } from './jwt.strategy.js';
 import { WebauthnService } from './webauthn.service.js';
 

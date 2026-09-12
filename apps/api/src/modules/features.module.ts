@@ -20,6 +20,7 @@ import { StorageModule } from './storage/storage.module.js';
 import { RealtimeModule } from './realtime/realtime.module.js';
 import { PingModule } from '../queues/ping.module.js';
 import { QueuesModule } from '../queues/queues.module.js';
+import { FamiliesModule } from './families/families.module.js';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { QueuesModule } from '../queues/queues.module.js';
     BillingModule,
     StorageModule,
     RealtimeModule,
+    FamiliesModule,
   ],
 })
 export class FeaturesModule {}

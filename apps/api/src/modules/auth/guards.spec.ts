@@ -21,7 +21,10 @@ interface ExecutionContextView {
   switchToHttp(): { getRequest(): unknown };
 }
 
-const contextFor = (handler: unknown, clazz: unknown): ExecutionContextView => ({
+const contextFor = (
+  handler: unknown,
+  clazz: unknown,
+): ExecutionContextView => ({
   getHandler: () => handler,
   getClass: () => clazz,
   switchToHttp: () => ({ getRequest: () => ({ user }) }),
@@ -35,7 +38,11 @@ describe('AuthGuard', () => {
     class PublicController {
       value(): void {}
     }
-    expect(guard.canActivate(contextFor(PublicController.prototype.value, PublicController) as never)).toBe(true);
+    expect(
+      guard.canActivate(
+        contextFor(PublicController.prototype.value, PublicController) as never,
+      ),
+    ).toBe(true);
   });
 });
 
@@ -46,7 +53,9 @@ describe('RolesGuard', () => {
     class NoRoles {
       value(): void {}
     }
-    expect(guard.canActivate(contextFor(NoRoles.prototype.value, NoRoles) as never)).toBe(true);
+    expect(
+      guard.canActivate(contextFor(NoRoles.prototype.value, NoRoles) as never),
+    ).toBe(true);
   });
 
   it('allows matching roles', () => {
@@ -54,7 +63,11 @@ describe('RolesGuard', () => {
     class AdminOnly {
       value(): void {}
     }
-    expect(guard.canActivate(contextFor(AdminOnly.prototype.value, AdminOnly) as never)).toBe(true);
+    expect(
+      guard.canActivate(
+        contextFor(AdminOnly.prototype.value, AdminOnly) as never,
+      ),
+    ).toBe(true);
   });
 
   it('denies a mismatched role', () => {
@@ -62,7 +75,11 @@ describe('RolesGuard', () => {
     class SuperAdminOnly {
       value(): void {}
     }
-    expect(guard.canActivate(contextFor(SuperAdminOnly.prototype.value, SuperAdminOnly) as never)).toBe(false);
+    expect(
+      guard.canActivate(
+        contextFor(SuperAdminOnly.prototype.value, SuperAdminOnly) as never,
+      ),
+    ).toBe(false);
   });
 });
 
@@ -70,7 +87,9 @@ describe('PoliciesGuard', () => {
   const guard = new PoliciesGuard(new Reflector());
 
   it('allows when every evaluator passes', async () => {
-    @Policies((principal: AuthenticatedUser) => principal.familyId === 'family-1')
+    @Policies(
+      (principal: AuthenticatedUser) => principal.familyId === 'family-1',
+    )
     class FamilyScoped {
       value(): void {}
     }

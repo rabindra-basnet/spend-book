@@ -15,7 +15,10 @@ export class PingQueueService {
   ) {}
 
   async enqueue(note = 'connectivity-smoke-test'): Promise<PingResult> {
-    const job = await this.queue.add(PING_JOB, { at: new Date().toISOString(), note });
+    const job = await this.queue.add(PING_JOB, {
+      at: new Date().toISOString(),
+      note,
+    });
     return { jobId: job.id };
   }
 }

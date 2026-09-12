@@ -23,8 +23,12 @@ export class RegisterDto {
   @ApiProperty({ example: 'Str0ng!Pass' })
   @IsString()
   @MinLength(8, { message: 'Password must be at least 8 characters long' })
-  @Matches(PASSWORD_UPPERCASE, { message: 'Password must include an uppercase letter' })
-  @Matches(PASSWORD_LOWERCASE, { message: 'Password must include a lowercase letter' })
+  @Matches(PASSWORD_UPPERCASE, {
+    message: 'Password must include an uppercase letter',
+  })
+  @Matches(PASSWORD_LOWERCASE, {
+    message: 'Password must include a lowercase letter',
+  })
   @Matches(PASSWORD_DIGIT, { message: 'Password must include a digit' })
   @Matches(PASSWORD_SPECIAL, {
     message: 'Password must include a special character (!@#$%^&*(),.?":{}|<>)',

@@ -51,8 +51,6 @@ async function bootstrap() {
 
   await app.listen(port, '0.0.0.0');
   const logger = new Logger('Bootstrap');
-  logger.log(
-    `API listening on http://0.0.0.0:${port} (docs at /docs)`,
-  );
+  logger.log(`API listening on http://0.0.0.0:${port} (docs at /docs)`);
 }
 void bootstrap();

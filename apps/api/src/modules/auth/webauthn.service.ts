@@ -14,12 +14,21 @@ import {
   verifyRegistrationResponse,
 } from '@simplewebauthn/server';
 import { isoBase64URL } from '@simplewebauthn/server/helpers';
-import type { AuthenticationResponseJSON, RegistrationResponseJSON } from '@simplewebauthn/server';
+import type {
+  AuthenticationResponseJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/server';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { AuthService, type SessionMetadata } from './auth.service.js';
-import { CHALLENGE_STORE, type ChallengeStore } from './challenge-store.service.js';
-import { PasskeyLoginOptionsDto, PasskeyLoginVerifyDto } from './dto/webauthn.dto.js';
+import {
+  CHALLENGE_STORE,
+  type ChallengeStore,
+} from './challenge-store.service.js';
+import {
+  PasskeyLoginOptionsDto,
+  PasskeyLoginVerifyDto,
+} from './dto/webauthn.dto.js';
 import { VerifyWebauthnRegistrationDto } from './dto/verify-webauthn-registration.dto.js';
 import { AuthResponseEntity } from './entities/auth-response.entity.js';
 import { PasskeyRegistrationResultEntity } from './entities/mfa.entity.js';
@@ -28,8 +37,10 @@ const CHALLENGE_TTL_SECONDS = 300;
 const REGISTRATION_KEY_PREFIX = 'auth:wa:reg:';
 const AUTH_CHALLENGE_KEY_PREFIX = 'auth:wa:auth:';
 
-const registrationKey = (userId: string): string => `${REGISTRATION_KEY_PREFIX}${userId}`;
-const authChallengeKey = (challenge: string): string => `${AUTH_CHALLENGE_KEY_PREFIX}${challenge}`;
+const registrationKey = (userId: string): string =>
+  `${REGISTRATION_KEY_PREFIX}${userId}`;
+const authChallengeKey = (challenge: string): string =>
+  `${AUTH_CHALLENGE_KEY_PREFIX}${challenge}`;
 
 interface AuthChallengeEntry {
   /** User the challenge was scoped to (email login) or null for usernameless login. */
@@ -73,16 +84,27 @@ export class WebauthnService {
       rpID: this.rpId,
       userName: user.email ?? user.id,
       userID: isoBase64URL.toBuffer(user.webauthnId!),
-      userDisplayName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || undefined,
+      userDisplayName:
+        [user.firstName, user.lastName].filter(Boolean).join(' ').trim() ||
+        undefined,
       excludeCredentials: credentials.map((credential) => ({
         id: credential.credentialId,
         transports:
-          credential.transports.length > 0 ? credential.transports : (undefined as never),
+          credential.transports.length > 0
+            ? credential.transports
+            : (undefined as never),
       })),
-      authenticatorSelection: { residentKey: 'preferred', userVerification: 'preferred' },
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+      },
       attestationType: 'none',
     });
-    await this.challenges.set(registrationKey(user.id), options.challenge, CHALLENGE_TTL_SECONDS);
+    await this.challenges.set(
+      registrationKey(user.id),
+      options.challenge,
+      CHALLENGE_TTL_SECONDS,
+    );
     return options;
   }
 
@@ -91,9 +113,13 @@ export class WebauthnService {
     dto: VerifyWebauthnRegistrationDto,
   ): Promise<PasskeyRegistrationResultEntity> {
     const user = await this.requireUser(principal.id, true);
-    const expectedChallenge = await this.challenges.get<string>(registrationKey(user.id));
+    const expectedChallenge = await this.challenges.get<string>(
+      registrationKey(user.id),
+    );
     if (!expectedChallenge) {
-      throw new BadRequestException('Registration challenge expired; start again');
+      throw new BadRequestException(
+        'Registration challenge expired; start again',
+      );
     }
 
     const verification = await verifyRegistrationResponse({
@@ -123,8 +149,8 @@ export class WebauthnService {
         publicKey: isoBase64URL.fromBuffer(credential.publicKey),
         signCount: credential.counter,
         transports:
-          (dto.response as unknown as { response?: { transports?: string[] } }).response
-            ?.transports ?? [],
+          (dto.response as unknown as { response?: { transports?: string[] } })
+            .response?.transports ?? [],
         nickname: this.credentialNickname(user),
       },
     });
@@ -146,13 +172,17 @@ export class WebauthnService {
         select: { credentialId: true, transports: true },
       });
       if (credentials.length === 0) {
-        throw new UnauthorizedException('No passkeys registered for this account');
+        throw new UnauthorizedException(
+          'No passkeys registered for this account',
+        );
       }
       allowCredentials.push(
         ...credentials.map((credential) => ({
           id: credential.credentialId,
           transports:
-            credential.transports.length > 0 ? credential.transports : (undefined as never),
+            credential.transports.length > 0
+              ? credential.transports
+              : (undefined as never),
         })),
       );
       scopedUserId = user.id;
@@ -160,7 +190,8 @@ export class WebauthnService {
 
     const options = await generateAuthenticationOptions({
       rpID: this.rpId,
-      allowCredentials: allowCredentials.length > 0 ? allowCredentials : undefined,
+      allowCredentials:
+        allowCredentials.length > 0 ? allowCredentials : undefined,
       userVerification: 'required',
     });
     await this.challenges.set<AuthChallengeEntry>(
@@ -185,18 +216,26 @@ export class WebauthnService {
     if (!credential) {
       throw new UnauthorizedException('Unrecognized passkey');
     }
-    const user = await this.prisma.user.findUnique({ where: { id: credential.userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: credential.userId },
+    });
     if (!user || !user.active) {
       throw new UnauthorizedException('Account is not available');
     }
 
     const challenge = this.challengeFromResponse(response);
-    const entry = await this.challenges.get<AuthChallengeEntry>(authChallengeKey(challenge));
+    const entry = await this.challenges.get<AuthChallengeEntry>(
+      authChallengeKey(challenge),
+    );
     if (!entry) {
-      throw new UnauthorizedException('Passkey login challenge expired; start again');
+      throw new UnauthorizedException(
+        'Passkey login challenge expired; start again',
+      );
     }
     if (entry.userId && entry.userId !== user.id) {
-      throw new UnauthorizedException('Passkey does not belong to this account');
+      throw new UnauthorizedException(
+        'Passkey does not belong to this account',
+      );
     }
     await this.challenges.delete(authChallengeKey(challenge));
 

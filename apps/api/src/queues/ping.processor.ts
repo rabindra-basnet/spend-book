@@ -9,7 +9,9 @@ export class PingProcessor extends WorkerHost {
 
   async process(job: Job<PingJobData>): Promise<string> {
     if (job.name !== PING_JOB) return 'unhandled';
-    this.logger.log(`Ping received at ${job.data.at} (job ${job.id}, note: ${job.data.note})`);
+    this.logger.log(
+      `Ping received at ${job.data.at} (job ${job.id}, note: ${job.data.note})`,
+    );
     return job.name;
   }
 

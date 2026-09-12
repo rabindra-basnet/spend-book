@@ -29,7 +29,12 @@ const configValues: Record<string, unknown> = {
 describe('AuthService', () => {
   let service: AuthService;
   const prisma = {
-    user: { findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), update: vi.fn() },
+    user: {
+      findUnique: vi.fn(),
+      count: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
     family: { create: vi.fn() },
     session: { findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
     $transaction: vi.fn(),
@@ -74,14 +79,17 @@ describe('AuthService', () => {
       $executeRaw: vi.fn(),
       user: {
         count: vi.fn().mockResolvedValue(0),
-        create: vi.fn().mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-          Promise.resolve(makeUser({ role: data.role })),
-        ),
+        create: vi
+          .fn()
+          .mockImplementation(({ data }: { data: Record<string, unknown> }) =>
+            Promise.resolve(makeUser({ role: data.role })),
+          ),
       },
       family: { create: vi.fn().mockResolvedValue({ id: 'family-1' }) },
     };
-    prisma.$transaction.mockImplementation(async (callback: (client: unknown) => unknown) =>
-      callback({ ...tx, ...txOverrides }),
+    prisma.$transaction.mockImplementation(
+      async (callback: (client: unknown) => unknown) =>
+        callback({ ...tx, ...txOverrides }),
     );
     return tx;
   };
@@ -103,8 +111,9 @@ describe('AuthService', () => {
     vi.clearAllMocks();
     jwt.signAsync.mockResolvedValue('access-token');
     prisma.session.create.mockResolvedValue(makeSession());
-    prisma.user.update.mockImplementation(({ data }: { data: Record<string, unknown> }) =>
-      Promise.resolve(makeUser(data)),
+    prisma.user.update.mockImplementation(
+      ({ data }: { data: Record<string, unknown> }) =>
+        Promise.resolve(makeUser(data)),
     );
   });
 
@@ -147,7 +156,10 @@ describe('AuthService', () => {
     it('rejects a duplicate email', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser());
       await expect(
-        service.register({ email: 'Ada@Example.com', password: PASSWORD } as RegisterDto),
+        service.register({
+          email: 'Ada@Example.com',
+          password: PASSWORD,
+        } as RegisterDto),
       ).rejects.toBeInstanceOf(ConflictException);
       expect(prisma.user.create).not.toHaveBeenCalled();
     });
@@ -157,21 +169,30 @@ describe('AuthService', () => {
     it('rejects an unknown user with a generic message', async () => {
       prisma.user.findUnique.mockResolvedValue(null);
       await expect(
-        service.login({ email: 'ghost@example.com', password: PASSWORD } as LoginDto),
+        service.login({
+          email: 'ghost@example.com',
+          password: PASSWORD,
+        } as LoginDto),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects a wrong password', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser());
       await expect(
-        service.login({ email: 'ada@example.com', password: 'Wrong-Pass!' } as LoginDto),
+        service.login({
+          email: 'ada@example.com',
+          password: 'Wrong-Pass!',
+        } as LoginDto),
       ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('asks for an MFA code when the account requires it', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser({ otpRequired: true }));
       await expect(
-        service.login({ email: 'ada@example.com', password: PASSWORD } as LoginDto),
+        service.login({
+          email: 'ada@example.com',
+          password: PASSWORD,
+        } as LoginDto),
       ).rejects.toMatchObject({ response: { code: 'MFA_REQUIRED' } });
       expect(prisma.session.create).not.toHaveBeenCalled();
     });
@@ -214,27 +235,37 @@ describe('AuthService', () => {
     it('rotates the session and issues a new token pair', async () => {
       prisma.session.findUnique.mockResolvedValue(makeSession());
       prisma.user.findUnique.mockResolvedValue(makeUser());
-      const response = await service.refresh({ refreshToken: 'rotating-token' });
+      const response = await service.refresh({
+        refreshToken: 'rotating-token',
+      });
 
       expect(prisma.session.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ revokedAt: expect.any(Date) }) }),
+        expect.objectContaining({
+          data: expect.objectContaining({ revokedAt: expect.any(Date) }),
+        }),
       );
       expect(prisma.session.create).toHaveBeenCalledTimes(1);
-      const digest = createHash('sha256').update(response.refreshToken).digest('hex');
-      expect(prisma.session.create.mock.calls[0][0].data.refreshTokenDigest).toBe(digest);
+      const digest = createHash('sha256')
+        .update(response.refreshToken)
+        .digest('hex');
+      expect(
+        prisma.session.create.mock.calls[0][0].data.refreshTokenDigest,
+      ).toBe(digest);
     });
 
     it('rejects a revoked or expired session', async () => {
       prisma.session.findUnique.mockResolvedValue(
         makeSession({ revokedAt: new Date() }),
       );
-      await expect(service.refresh({ refreshToken: 'dead' })).rejects.toBeInstanceOf(
-        UnauthorizedException,
+      await expect(
+        service.refresh({ refreshToken: 'dead' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
+      prisma.session.findUnique.mockResolvedValue(
+        makeSession({ expiresAt: new Date(0) }),
       );
-      prisma.session.findUnique.mockResolvedValue(makeSession({ expiresAt: new Date(0) }));
-      await expect(service.refresh({ refreshToken: 'expired' })).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      await expect(
+        service.refresh({ refreshToken: 'expired' }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 
@@ -247,19 +278,30 @@ describe('AuthService', () => {
 
     it('is a no-op for an unknown refresh token', async () => {
       prisma.session.findUnique.mockResolvedValue(null);
-      await expect(service.logout({ refreshToken: 'ghost' })).resolves.toBeUndefined();
+      await expect(
+        service.logout({ refreshToken: 'ghost' }),
+      ).resolves.toBeUndefined();
     });
   });
 
   describe('MFA setup/enable/disable', () => {
-    const principal = { id: 'user-1', email: 'ada@example.com', role: 'member', familyId: 'family-1' };
+    const principal = {
+      id: 'user-1',
+      email: 'ada@example.com',
+      role: 'member',
+      familyId: 'family-1',
+    };
 
     it('returns a TOTP secret and URI, persisted only on enable', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser());
       const setup = await service.setupMfa(principal);
       expect(setup.secret).toBeTruthy();
       expect(setup.uri).toContain('otpauth://totp/');
-      expect(challenges.set).toHaveBeenCalledWith('auth:mfa-setup:user-1', setup.secret, 600);
+      expect(challenges.set).toHaveBeenCalledWith(
+        'auth:mfa-setup:user-1',
+        setup.secret,
+        600,
+      );
     });
 
     it('starts enabling MFA and returns 8 backup codes', async () => {
@@ -279,9 +321,9 @@ describe('AuthService', () => {
     it('rejects enable without a pending setup', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser());
       challenges.get.mockResolvedValue(null);
-      await expect(service.enableMfa(principal, { code: '123456' })).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.enableMfa(principal, { code: '123456' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
 
     it('disables MFA with a valid TOTP code', async () => {
@@ -312,7 +354,9 @@ describe('AuthService', () => {
       const sessionData = prisma.session.create.mock.calls[0][0].data;
       expect(sessionData.ipAddress).toBe('127.0.0.1');
       expect(sessionData.userAgent).toBe('vitest');
-      const expectedDigest = createHash('sha256').update(response.refreshToken).digest('hex');
+      const expectedDigest = createHash('sha256')
+        .update(response.refreshToken)
+        .digest('hex');
       expect(sessionData.refreshTokenDigest).toBe(expectedDigest);
     });
   });

@@ -24,7 +24,10 @@ describe('configuration factory', () => {
   });
 
   it('prefers DATABASE_URL when set', () => {
-    process.env = { ...originalEnv, DATABASE_URL: 'postgresql://u:p@h:5432/custom' };
+    process.env = {
+      ...originalEnv,
+      DATABASE_URL: 'postgresql://u:p@h:5432/custom',
+    };
     expect(configuration().database.url).toBe('postgresql://u:p@h:5432/custom');
   });
 
@@ -51,7 +54,9 @@ describe('env validation', () => {
   });
 
   it('requires SECRET_KEY_BASE outside tests', () => {
-    expect(() => validate({ NODE_ENV: 'development' })).toThrow(/SECRET_KEY_BASE is required/);
+    expect(() => validate({ NODE_ENV: 'development' })).toThrow(
+      /SECRET_KEY_BASE is required/,
+    );
   });
 
   it('accepts a valid env and strips unknown keys', () => {

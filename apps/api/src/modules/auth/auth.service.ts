@@ -14,7 +14,10 @@ import { generateSecret, generateURI, verify } from 'otplib';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import type { User } from '../../database/generated/prisma/client.js';
-import { CHALLENGE_STORE, type ChallengeStore } from './challenge-store.service.js';
+import {
+  CHALLENGE_STORE,
+  type ChallengeStore,
+} from './challenge-store.service.js';
 import { DisableMfaDto } from './dto/disable-mfa.dto.js';
 import { EnableMfaDto } from './dto/enable-mfa.dto.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -36,7 +39,8 @@ const MFA_SETUP_KEY_PREFIX = 'auth:mfa-setup:';
 /** Advisory lock serializing first-user (super_admin) creation. */
 const FIRST_USER_ADVISORY_LOCK = 740_385_950;
 
-const mfaSetupKey = (userId: string): string => `${MFA_SETUP_KEY_PREFIX}${userId}`;
+const mfaSetupKey = (userId: string): string =>
+  `${MFA_SETUP_KEY_PREFIX}${userId}`;
 
 export interface SessionMetadata {
   ipAddress?: string;
@@ -57,15 +61,21 @@ export class AuthService {
   }
 
   private get refreshTokenTtlSeconds(): number {
-    return this.config.get<number>('auth.jwt.refreshTokenTtlSeconds') ?? 2_592_000;
+    return (
+      this.config.get<number>('auth.jwt.refreshTokenTtlSeconds') ?? 2_592_000
+    );
   }
 
   private get productName(): string {
     return this.config.get<string>('app.productName') ?? 'Spend Book';
   }
 
-  async register(dto: RegisterDto, metadata: SessionMetadata = {}): Promise<AuthResponseEntity> {
-    const onboardingState = this.config.get<string>('auth.onboardingState') ?? 'open';
+  async register(
+    dto: RegisterDto,
+    metadata: SessionMetadata = {},
+  ): Promise<AuthResponseEntity> {
+    const onboardingState =
+      this.config.get<string>('auth.onboardingState') ?? 'open';
     if (onboardingState === 'closed') {
       throw new ForbiddenException('Registration is currently closed');
     }
@@ -105,7 +115,10 @@ export class AuthService {
     return this.createAuthResponse(user, metadata);
   }
 
-  async login(dto: LoginDto, metadata: SessionMetadata = {}): Promise<AuthResponseEntity> {
+  async login(
+    dto: LoginDto,
+    metadata: SessionMetadata = {},
+  ): Promise<AuthResponseEntity> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordDigest || !user.active) {
@@ -124,7 +137,11 @@ export class AuthService {
           message: 'Two-factor authentication code required',
         });
       }
-      const valid = await this.verifyMfaCode(user, dto.otpCode, dto.usage ?? 'totp');
+      const valid = await this.verifyMfaCode(
+        user,
+        dto.otpCode,
+        dto.usage ?? 'totp',
+      );
       if (!valid) {
         throw new UnauthorizedException('Invalid or expired code');
       }
@@ -133,7 +150,10 @@ export class AuthService {
     return this.createAuthResponse(user, metadata);
   }
 
-  async refresh(dto: RefreshTokenDto, metadata: SessionMetadata = {}): Promise<AuthResponseEntity> {
+  async refresh(
+    dto: RefreshTokenDto,
+    metadata: SessionMetadata = {},
+  ): Promise<AuthResponseEntity> {
     const digest = this.refreshTokenDigest(dto.refreshToken);
     const session = await this.prisma.session.findUnique({
       where: { refreshTokenDigest: digest },
@@ -144,11 +164,16 @@ export class AuthService {
     if (session.expiresAt && session.expiresAt.getTime() < Date.now()) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    const user = await this.prisma.user.findUnique({ where: { id: session.userId } });
+    const user = await this.prisma.user.findUnique({
+      where: { id: session.userId },
+    });
     if (!user || !user.active) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    await this.prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+    await this.prisma.session.update({
+      where: { id: session.id },
+      data: { revokedAt: new Date() },
+    });
     return this.createAuthResponse(user, metadata);
   }
 
@@ -158,7 +183,10 @@ export class AuthService {
       where: { refreshTokenDigest: digest },
     });
     if (session && !session.revokedAt) {
-      await this.prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      await this.prisma.session.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() },
+      });
     }
   }
 
@@ -178,15 +206,26 @@ export class AuthService {
       issuer: this.productName,
       label: user.email ?? user.id,
     });
-    await this.challenges.set(mfaSetupKey(user.id), secret, MFA_SETUP_TTL_SECONDS);
+    await this.challenges.set(
+      mfaSetupKey(user.id),
+      secret,
+      MFA_SETUP_TTL_SECONDS,
+    );
     return { secret, uri };
   }
 
-  async enableMfa(principal: AuthenticatedUser, dto: EnableMfaDto): Promise<BackupCodesEntity> {
+  async enableMfa(
+    principal: AuthenticatedUser,
+    dto: EnableMfaDto,
+  ): Promise<BackupCodesEntity> {
     const user = await this.requireUser(principal.id);
-    const pendingSecret = await this.challenges.get<string>(mfaSetupKey(user.id));
+    const pendingSecret = await this.challenges.get<string>(
+      mfaSetupKey(user.id),
+    );
     if (!pendingSecret) {
-      throw new BadRequestException('No pending MFA setup; call /auth/mfa/setup first');
+      throw new BadRequestException(
+        'No pending MFA setup; call /auth/mfa/setup first',
+      );
     }
     const valid = await this.verifyTotp(pendingSecret, dto.code);
     if (!valid) {
@@ -195,16 +234,25 @@ export class AuthService {
     const backupCodes = Array.from({ length: BACKUP_CODES_COUNT }, () =>
       randomBytes(BACKUP_CODE_BYTES).toString('hex').toUpperCase(),
     );
-    const backupDigests = await Promise.all(backupCodes.map((code) => hash(code, BCRYPT_ROUNDS)));
+    const backupDigests = await Promise.all(
+      backupCodes.map((code) => hash(code, BCRYPT_ROUNDS)),
+    );
     await this.prisma.user.update({
       where: { id: user.id },
-      data: { otpSecret: pendingSecret, otpRequired: true, otpBackupCodes: backupDigests },
+      data: {
+        otpSecret: pendingSecret,
+        otpRequired: true,
+        otpBackupCodes: backupDigests,
+      },
     });
     await this.challenges.delete(mfaSetupKey(user.id));
     return { backupCodes };
   }
 
-  async disableMfa(principal: AuthenticatedUser, dto: DisableMfaDto): Promise<void> {
+  async disableMfa(
+    principal: AuthenticatedUser,
+    dto: DisableMfaDto,
+  ): Promise<void> {
     const user = await this.requireUser(principal.id);
     if (!user.otpRequired || !user.otpSecret) {
       throw new BadRequestException('Two-factor authentication is not enabled');
@@ -220,7 +268,10 @@ export class AuthService {
   }
 
   /** Builds an auth response (creates a fresh session row) for a verified user. */
-  async createAuthResponse(user: User, metadata: SessionMetadata = {}): Promise<AuthResponseEntity> {
+  async createAuthResponse(
+    user: User,
+    metadata: SessionMetadata = {},
+  ): Promise<AuthResponseEntity> {
     const accessToken = await this.jwt.signAsync(
       {
         sub: user.id,
@@ -241,7 +292,10 @@ export class AuthService {
         userAgent: metadata.userAgent ?? null,
       },
     });
-    await this.prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     return {
       user: this.toProfile(user),
@@ -292,7 +346,11 @@ export class AuthService {
       if (await compare(normalized, digest)) {
         await this.prisma.user.update({
           where: { id: user.id },
-          data: { otpBackupCodes: user.otpBackupCodes.filter((entry) => entry !== digest) },
+          data: {
+            otpBackupCodes: user.otpBackupCodes.filter(
+              (entry) => entry !== digest,
+            ),
+          },
         });
         return true;
       }
@@ -300,7 +358,11 @@ export class AuthService {
     return false;
   }
 
-  private async verifyMfaCode(user: User, code: string, usage: 'totp' | 'recovery_code'): Promise<boolean> {
+  private async verifyMfaCode(
+    user: User,
+    code: string,
+    usage: 'totp' | 'recovery_code',
+  ): Promise<boolean> {
     return usage === 'recovery_code'
       ? this.verifyBackupCode(user, code)
       : this.verifyTotp(user.otpSecret ?? '', code);

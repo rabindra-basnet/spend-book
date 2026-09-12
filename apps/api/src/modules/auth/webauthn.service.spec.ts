@@ -34,7 +34,12 @@ const configValues: Record<string, unknown> = {
   'app.productName': 'Spend Book',
 };
 
-const principal = { id: 'user-1', email: 'ada@example.com', role: 'member', familyId: 'family-1' };
+const principal = {
+  id: 'user-1',
+  email: 'ada@example.com',
+  role: 'member',
+  familyId: 'family-1',
+};
 
 const makeUser = (overrides: Record<string, unknown> = {}) => ({
   id: 'user-1',
@@ -62,7 +67,12 @@ describe('WebauthnService', () => {
   let service: WebauthnService;
   const prisma = {
     user: { findUnique: vi.fn() },
-    webauthnCredential: { findMany: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+    webauthnCredential: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+    },
   };
   const auth = { createAuthResponse: vi.fn() };
   const config = {
@@ -94,7 +104,9 @@ describe('WebauthnService', () => {
         { credentialId: 'existing', transports: ['internal'] },
       ]);
       const options = { challenge: 'reg-challenge', rpId: 'spendbook.local' };
-      vi.mocked(generateRegistrationOptions).mockResolvedValue(options as never);
+      vi.mocked(generateRegistrationOptions).mockResolvedValue(
+        options as never,
+      );
 
       const result = await service.registrationOptions(principal);
 
@@ -105,20 +117,26 @@ describe('WebauthnService', () => {
           excludeCredentials: [{ id: 'existing', transports: ['internal'] }],
         }),
       );
-      expect(challenges.set).toHaveBeenCalledWith('auth:wa:reg:user-1', 'reg-challenge', 300);
+      expect(challenges.set).toHaveBeenCalledWith(
+        'auth:wa:reg:user-1',
+        'reg-challenge',
+        300,
+      );
       expect(result).toEqual(options);
     });
 
     it('requires a webauthn identity', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser({ webauthnId: null }));
-      await expect(service.registrationOptions(principal)).rejects.toBeInstanceOf(
-        BadRequestException,
-      );
+      await expect(
+        service.registrationOptions(principal),
+      ).rejects.toBeInstanceOf(BadRequestException);
     });
   });
 
   describe('verifyRegistration', () => {
-    const body = { response: { id: 'cred-2', response: { transports: ['hybrid'] } } };
+    const body = {
+      response: { id: 'cred-2', response: { transports: ['hybrid'] } },
+    };
 
     it('persists a verified credential', async () => {
       prisma.user.findUnique.mockResolvedValue(makeUser());
@@ -157,7 +175,9 @@ describe('WebauthnService', () => {
       challenges.get.mockResolvedValue('reg-challenge');
       prisma.webauthnCredential.findUnique.mockResolvedValue(makeCredential());
       await expect(
-        service.verifyRegistration(principal, { response: { id: 'cred-2' } } as never),
+        service.verifyRegistration(principal, {
+          response: { id: 'cred-2' },
+        } as never),
       ).rejects.toBeInstanceOf(ConflictException);
     });
   });
@@ -165,12 +185,17 @@ describe('WebauthnService', () => {
   describe('loginOptions', () => {
     it('returns usernameless options when no email is given', async () => {
       const options = { challenge: 'login-challenge', rpId: 'spendbook.local' };
-      vi.mocked(generateAuthenticationOptions).mockResolvedValue(options as never);
+      vi.mocked(generateAuthenticationOptions).mockResolvedValue(
+        options as never,
+      );
 
       const result = await service.loginOptions({});
 
       expect(generateAuthenticationOptions).toHaveBeenCalledWith(
-        expect.objectContaining({ allowCredentials: undefined, userVerification: 'required' }),
+        expect.objectContaining({
+          allowCredentials: undefined,
+          userVerification: 'required',
+        }),
       );
       expect(challenges.set).toHaveBeenCalledWith(
         'auth:wa:auth:login-challenge',
@@ -191,7 +216,9 @@ describe('WebauthnService', () => {
 
       await service.loginOptions({ email: 'Ada@example.com' });
 
-      expect(prisma.user.findUnique).toHaveBeenCalledWith({ where: { email: 'ada@example.com' } });
+      expect(prisma.user.findUnique).toHaveBeenCalledWith({
+        where: { email: 'ada@example.com' },
+      });
       expect(challenges.set).toHaveBeenCalledWith(
         'auth:wa:auth:login-challenge',
         { userId: 'user-1' },
@@ -201,7 +228,9 @@ describe('WebauthnService', () => {
 
     it('is disabled when configured', async () => {
       configValues['auth.passkeyLoginEnabled'] = false;
-      await expect(service.loginOptions({})).rejects.toBeInstanceOf(ForbiddenException);
+      await expect(service.loginOptions({})).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
       configValues['auth.passkeyLoginEnabled'] = true;
     });
   });
@@ -246,7 +275,10 @@ describe('WebauthnService', () => {
       );
       expect(prisma.webauthnCredential.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ signCount: 11, lastUsedAt: expect.any(Date) }),
+          data: expect.objectContaining({
+            signCount: 11,
+            lastUsedAt: expect.any(Date),
+          }),
         }),
       );
       expect(auth.createAuthResponse).toHaveBeenCalledWith(
@@ -258,18 +290,18 @@ describe('WebauthnService', () => {
 
     it('rejects an unrecognized credential', async () => {
       prisma.webauthnCredential.findUnique.mockResolvedValue(null);
-      await expect(service.loginVerify({ response: assertion })).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      await expect(
+        service.loginVerify({ response: assertion }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
     it('rejects a challenge that was scoped to another user', async () => {
       prisma.webauthnCredential.findUnique.mockResolvedValue(makeCredential());
       prisma.user.findUnique.mockResolvedValue(makeUser());
       challenges.get.mockResolvedValue({ userId: 'someone-else' });
-      await expect(service.loginVerify({ response: assertion })).rejects.toBeInstanceOf(
-        UnauthorizedException,
-      );
+      await expect(
+        service.loginVerify({ response: assertion }),
+      ).rejects.toBeInstanceOf(UnauthorizedException);
     });
   });
 });

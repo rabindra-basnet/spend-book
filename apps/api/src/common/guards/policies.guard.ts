@@ -1,7 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
-import { POLICIES_KEY, type PolicyEvaluator } from '../decorators/policies.decorator.js';
+import {
+  POLICIES_KEY,
+  type PolicyEvaluator,
+} from '../decorators/policies.decorator.js';
 import type { AuthenticatedUser } from '../types/authenticated-user.js';
 
 type AuthenticatedRequest = Request & { user?: AuthenticatedUser };
@@ -12,10 +15,10 @@ export class PoliciesGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const evaluators = this.reflector.getAllAndOverride<PolicyEvaluator[]>(POLICIES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const evaluators = this.reflector.getAllAndOverride<PolicyEvaluator[]>(
+      POLICIES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
     if (!evaluators || evaluators.length === 0) {
       return true;
     }

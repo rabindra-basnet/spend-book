@@ -13,7 +13,13 @@ import {
 } from 'class-validator';
 
 const ONBOARDING_STATES = ['open', 'closed', 'invite_only'] as const;
-const STORAGE_SERVICES = ['disk', 'amazon', 'cloudflare', 'generic_s3', 'google'] as const;
+const STORAGE_SERVICES = [
+  'disk',
+  'amazon',
+  'cloudflare',
+  'generic_s3',
+  'google',
+] as const;
 const MARKET_DATA_PROVIDERS = ['twelve_data', 'yahoo_finance'] as const;
 const VECTOR_STORE_PROVIDERS = ['openai', 'pgvector', 'qdrant'] as const;
 const BOOLEAN_STRINGS = ['true', 'false', '1', '0'] as const;
@@ -41,7 +47,13 @@ export class EnvironmentVariables {
   SELF_HOSTED?: string;
 
   @IsOptional()
-  @IsIn(ONBOARDING_STATES, { message: 'ONBOARDING_STATE must be one of open, closed, invite_only' })
+  @IsString()
+  LOG_FILE_PATH?: string;
+
+  @IsOptional()
+  @IsIn(ONBOARDING_STATES, {
+    message: 'ONBOARDING_STATE must be one of open, closed, invite_only',
+  })
   ONBOARDING_STATE?: string;
 
   @IsOptional()
@@ -109,7 +121,9 @@ export class EnvironmentVariables {
   SMTP_TLS_ENABLED?: string;
 
   @IsOptional()
-  @IsBooleanString({ message: 'SMTP_TLS_SKIP_VERIFY must be "true" or "false"' })
+  @IsBooleanString({
+    message: 'SMTP_TLS_SKIP_VERIFY must be "true" or "false"',
+  })
   SMTP_TLS_SKIP_VERIFY?: string;
 
   @IsOptional()
@@ -125,7 +139,9 @@ export class EnvironmentVariables {
   WEBAUTHN_ALLOWED_ORIGINS?: string;
 
   @IsOptional()
-  @IsBooleanString({ message: 'AUTH_PASSKEY_LOGIN_ENABLED must be "true" or "false"' })
+  @IsBooleanString({
+    message: 'AUTH_PASSKEY_LOGIN_ENABLED must be "true" or "false"',
+  })
   AUTH_PASSKEY_LOGIN_ENABLED?: string;
 
   @IsOptional()
@@ -188,7 +204,8 @@ export class EnvironmentVariables {
 
   @IsOptional()
   @IsIn(STORAGE_SERVICES, {
-    message: 'ACTIVE_STORAGE_SERVICE must be one of disk, amazon, cloudflare, generic_s3, google',
+    message:
+      'ACTIVE_STORAGE_SERVICE must be one of disk, amazon, cloudflare, generic_s3, google',
   })
   ACTIVE_STORAGE_SERVICE?: string;
 
@@ -299,7 +316,9 @@ export class EnvironmentVariables {
   SKYLIGHT_ENABLED?: string;
 }
 
-export const validate = (config: Record<string, unknown>): Record<string, unknown> => {
+export const validate = (
+  config: Record<string, unknown>,
+): Record<string, unknown> => {
   const validated = plainToInstance(EnvironmentVariables, config, {
     enableImplicitConversion: false,
   });

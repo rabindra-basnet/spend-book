@@ -1,7 +1,7 @@
 {
   "name": "spend-book",
   "private": true,
-  "packageManager": "nub@0.9.0",
+  "packageManager": "bun@1.2.14",
   "workspaces": [
     "apps/*",
     "packages/*"

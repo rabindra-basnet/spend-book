@@ -68,8 +68,18 @@ export interface AiConfig {
 
 export interface StorageConfig {
   service: 'disk' | 'amazon' | 'cloudflare' | 'generic_s3' | 'google';
-  amazon: { accessKeyId: string; secretAccessKey: string; region: string; bucket: string };
-  cloudflare: { accountId: string; accessKeyId: string; secretAccessKey: string; bucket: string };
+  amazon: {
+    accessKeyId: string;
+    secretAccessKey: string;
+    region: string;
+    bucket: string;
+  };
+  cloudflare: {
+    accountId: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    bucket: string;
+  };
   genericS3: {
     accessKeyId: string;
     secretAccessKey: string;
@@ -78,7 +88,12 @@ export interface StorageConfig {
     endpoint: string;
     forcePathStyle: boolean;
   };
-  google: { project: string; bucket: string; keyfileJson: string; keyfile: string };
+  google: {
+    project: string;
+    bucket: string;
+    keyfileJson: string;
+    keyfile: string;
+  };
 }
 
 export interface MarketDataConfig {
@@ -112,7 +127,10 @@ export interface Configuration {
 const parseBool = (value: string | undefined): boolean =>
   value?.toLowerCase() === 'true' || value === '1';
 
-const parseIntStrict = (value: string | undefined, fallback: number): number => {
+const parseIntStrict = (
+  value: string | undefined,
+  fallback: number,
+): number => {
   const parsed = Number.parseInt(value ?? '', 10);
   return Number.isNaN(parsed) ? fallback : parsed;
 };
@@ -185,13 +203,24 @@ export const configuration = (): Configuration => ({
   },
   auth: {
     selfHosted: parseBool(process.env.SELF_HOSTED ?? 'true'),
-    onboardingState: (process.env.ONBOARDING_STATE ?? 'open') as 'open' | 'closed' | 'invite_only',
+    onboardingState: (process.env.ONBOARDING_STATE ?? 'open') as
+      'open' | 'closed' | 'invite_only',
     webauthnRpId: process.env.WEBAUTHN_RP_ID ?? '',
-    webauthnAllowedOrigins: parseCommaList(process.env.WEBAUTHN_ALLOWED_ORIGINS),
-    passkeyLoginEnabled: parseBool(process.env.AUTH_PASSKEY_LOGIN_ENABLED ?? 'true'),
+    webauthnAllowedOrigins: parseCommaList(
+      process.env.WEBAUTHN_ALLOWED_ORIGINS,
+    ),
+    passkeyLoginEnabled: parseBool(
+      process.env.AUTH_PASSKEY_LOGIN_ENABLED ?? 'true',
+    ),
     jwt: {
-      accessTokenTtlSeconds: parseIntStrict(process.env.JWT_ACCESS_TTL_SECONDS, 900),
-      refreshTokenTtlSeconds: parseIntStrict(process.env.JWT_REFRESH_TTL_SECONDS, 2_592_000),
+      accessTokenTtlSeconds: parseIntStrict(
+        process.env.JWT_ACCESS_TTL_SECONDS,
+        900,
+      ),
+      refreshTokenTtlSeconds: parseIntStrict(
+        process.env.JWT_REFRESH_TTL_SECONDS,
+        2_592_000,
+      ),
     },
     oidc: {
       clientId: process.env.OIDC_CLIENT_ID ?? '',
@@ -205,9 +234,7 @@ export const configuration = (): Configuration => ({
     openaiModel: process.env.OPENAI_MODEL ?? '',
     openaiUriBase: process.env.OPENAI_URI_BASE ?? '',
     vectorStoreProvider: (process.env.VECTOR_STORE_PROVIDER ?? 'openai') as
-      | 'openai'
-      | 'pgvector'
-      | 'qdrant',
+      'openai' | 'pgvector' | 'qdrant',
     embeddingModel: process.env.EMBEDDING_MODEL ?? '',
     embeddingUriBase: process.env.EMBEDDING_URI_BASE ?? '',
     embeddingDimensions: parseIntStrict(process.env.EMBEDDING_DIMENSIONS, 1024),
@@ -217,11 +244,7 @@ export const configuration = (): Configuration => ({
   },
   storage: {
     service: (process.env.ACTIVE_STORAGE_SERVICE ?? 'disk') as
-      | 'disk'
-      | 'amazon'
-      | 'cloudflare'
-      | 'generic_s3'
-      | 'google',
+      'disk' | 'amazon' | 'cloudflare' | 'generic_s3' | 'google',
     amazon: {
       accessKeyId: process.env.S3_ACCESS_KEY_ID ?? '',
       secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? '',
@@ -251,17 +274,18 @@ export const configuration = (): Configuration => ({
   },
   marketData: {
     twelveDataApiKey: process.env.TWELVE_DATA_API_KEY ?? '',
-    exchangeRateProvider: (process.env.EXCHANGE_RATE_PROVIDER ?? 'yahoo_finance') as
-      | 'twelve_data'
-      | 'yahoo_finance',
+    exchangeRateProvider: (process.env.EXCHANGE_RATE_PROVIDER ??
+      'yahoo_finance') as 'twelve_data' | 'yahoo_finance',
     securitiesProvider: (process.env.SECURITIES_PROVIDER ?? 'yahoo_finance') as
-      | 'twelve_data'
-      | 'yahoo_finance',
+      'twelve_data' | 'yahoo_finance',
   },
   observability: {
     posthogKey: process.env.POSTHOG_KEY ?? '',
     posthogHost: process.env.POSTHOG_HOST ?? '',
     skylightAuthentication: process.env.SKYLIGHT_AUTHENTICATION ?? '',
     skylightEnabled: process.env.SKYLIGHT_ENABLED ?? '',
+  },
+  logging: {
+    filePath: process.env.LOG_FILE_PATH ?? 'logs/app.log',
   },
 });

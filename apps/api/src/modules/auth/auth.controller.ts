@@ -1,5 +1,20 @@
-import { Body, Controller, Get, Headers, HttpCode, HttpStatus, Ip, Post } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  HttpStatus,
+  Ip,
+  Post,
+} from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiOperation,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
@@ -12,9 +27,16 @@ import { LogoutDto } from './dto/logout.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { VerifyWebauthnRegistrationDto } from './dto/verify-webauthn-registration.dto.js';
-import { PasskeyLoginOptionsDto, PasskeyLoginVerifyDto } from './dto/webauthn.dto.js';
+import {
+  PasskeyLoginOptionsDto,
+  PasskeyLoginVerifyDto,
+} from './dto/webauthn.dto.js';
 import { AuthResponseEntity } from './entities/auth-response.entity.js';
-import { BackupCodesEntity, MfaSetupEntity, PasskeyRegistrationResultEntity } from './entities/mfa.entity.js';
+import {
+  BackupCodesEntity,
+  MfaSetupEntity,
+  PasskeyRegistrationResultEntity,
+} from './entities/mfa.entity.js';
 import { UserProfileEntity } from './entities/user-profile.entity.js';
 
 @ApiTags('auth')
@@ -30,7 +52,9 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user and family' })
   @ApiOkResponse({ type: AuthResponseEntity })
-  @ApiUnauthorizedResponse({ description: 'Validation error / closed registration / duplicate email' })
+  @ApiUnauthorizedResponse({
+    description: 'Validation error / closed registration / duplicate email',
+  })
   register(
     @Body() dto: RegisterDto,
     @Ip() ip: string,
@@ -42,7 +66,10 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Authenticate with email + password (+ optional TOTP / recovery code)' })
+  @ApiOperation({
+    summary:
+      'Authenticate with email + password (+ optional TOTP / recovery code)',
+  })
   @ApiOkResponse({ type: AuthResponseEntity })
   login(
     @Body() dto: LoginDto,
@@ -65,6 +92,7 @@ export class AuthController {
     return this.auth.refresh(dto, { ipAddress: ip, userAgent });
   }
 
+  @Public()
   @Post('logout')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Revoke a refresh token (log out a session)' })
@@ -87,7 +115,9 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('mfa/setup')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Generate a temporary TOTP secret and URI (enabled on verify)' })
+  @ApiOperation({
+    summary: 'Generate a temporary TOTP secret and URI (enabled on verify)',
+  })
   @ApiOkResponse({ type: MfaSetupEntity })
   setupMfa(@CurrentUser() user: AuthenticatedUser): Promise<MfaSetupEntity> {
     return this.auth.setupMfa(user);
@@ -96,7 +126,9 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('mfa/enable')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Verify a TOTP code to enable MFA and return backup codes' })
+  @ApiOperation({
+    summary: 'Verify a TOTP code to enable MFA and return backup codes',
+  })
   @ApiOkResponse({ type: BackupCodesEntity })
   enableMfa(
     @CurrentUser() user: AuthenticatedUser,
@@ -123,8 +155,12 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('webauthn/registration/options')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Return PublicKeyCredentialCreationOptions to register a passkey' })
-  webauthnRegistrationOptions(@CurrentUser() user: AuthenticatedUser): Promise<unknown> {
+  @ApiOperation({
+    summary: 'Return PublicKeyCredentialCreationOptions to register a passkey',
+  })
+  webauthnRegistrationOptions(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<unknown> {
     return this.webauthn.registrationOptions(user);
   }
 
@@ -143,7 +179,9 @@ export class AuthController {
   @Public()
   @Post('passkey/options')
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'Return PublicKeyCredentialRequestOptions for passwordless login' })
+  @ApiOperation({
+    summary: 'Return PublicKeyCredentialRequestOptions for passwordless login',
+  })
   passkeyLoginOptions(@Body() dto: PasskeyLoginOptionsDto): Promise<unknown> {
     return this.webauthn.loginOptions(dto);
   }

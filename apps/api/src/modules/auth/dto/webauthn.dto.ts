@@ -10,6 +10,8 @@ export class PasskeyLoginOptionsDto {
 }
 
 export class PasskeyLoginVerifyDto {
-  @ApiProperty({ description: 'AuthenticationResponseJSON from startAuthentication()' })
+  @ApiProperty({
+    description: 'AuthenticationResponseJSON from startAuthentication()',
+  })
   response!: unknown;
 }

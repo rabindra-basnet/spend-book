@@ -11,6 +11,7 @@ import { HttpExceptionFilter } from '../../common/filters/http-exception.filter.
 import { PrismaModule } from '../../database/prisma.module.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AuthModule } from './auth.module.js';
+import { TestDbUtils } from '../../../test/test-db-utils.js';
 
 describe('Auth API (e2e)', () => {
   let app: INestApplication;
@@ -61,21 +62,16 @@ describe('Auth API (e2e)', () => {
     );
     await app.init();
     prisma = app.get(PrismaService);
-    // Deterministic first-user role: purge any leftover e2e users/families
+    // Deterministic first-user role: purge any leftover users/families
     // from earlier (interrupted) runs so the advisory-lock path fires.
-    await prisma.user.deleteMany({
-      where: { email: { contains: '@example.com' } },
-    });
+    const dbUtils = new TestDbUtils(prisma);
+    await dbUtils.resetDb();
   });
 
   afterAll(async () => {
-    if (prisma && state.userId) {
-      await prisma.session.deleteMany({ where: { userId: state.userId } });
-      await prisma.webauthnCredential.deleteMany({ where: { userId: state.userId } });
-      await prisma.user.deleteMany({ where: { id: state.userId } });
-      if (state.familyId) {
-        await prisma.family.deleteMany({ where: { id: state.familyId } });
-      }
+    if (prisma) {
+      const dbUtils = new TestDbUtils(prisma);
+      await dbUtils.resetDb();
     }
     if (app) {
       await app.close();
