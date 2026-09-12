@@ -2165,53 +2165,10 @@ model SsoIdentityBlock {
   @@map("sso_identity_blocks")
 }
 
-// ---------------------------------------------------------------------------
-// Document storage (ActiveStorage)
-// ---------------------------------------------------------------------------
-
-model ActiveStorageBlob {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  byteSize    BigInt
-  checksum    String?
-  contentType String?
-  createdAt   DateTime @default(now())
-  filename    String   @default("")
-  key         String   @default("")
-  metadata    String?  @db.Text
-  serviceName String   @default("")
-
-  attachments   ActiveStorageAttachment[]
-  variantRecords ActiveStorageVariantRecord[]
-
-  @@unique([key], map: "index_active_storage_blobs_on_key")
-  @@map("active_storage_blobs")
-}
-
-model ActiveStorageAttachment {
-  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  blobId     String   @db.Uuid
-  createdAt  DateTime @default(now())
-  name       String   @default("")
-  recordId   String   @db.Uuid
-  recordType String   @default("")
-
-  blob ActiveStorageBlob @relation(fields: [blobId], references: [id])
-
-  @@index([blobId], map: "index_active_storage_attachments_on_blob_id")
-  @@unique([recordType, recordId, name, blobId], map: "index_active_storage_attachments_uniqueness")
-  @@map("active_storage_attachments")
-}
-
-model ActiveStorageVariantRecord {
-  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  blobId          String   @db.Uuid
-  variationDigest String   @default("")
-
-  blob ActiveStorageBlob @relation(fields: [blobId], references: [id])
-
-  @@unique([blobId, variationDigest], map: "index_active_storage_variant_records_uniqueness")
-  @@map("active_storage_variant_records")
-}
+// Document storage (ActiveStorage) is intentionally NOT ported: Sure's
+// ActiveStorage (S3/R2/GCS/local via @aws-sdk/client-s3) is replaced by the
+// modules/storage S3 SDK integration (migration-inventory.md §4). File metadata
+// is hoisted into owning models (AccountStatement, FamilyDocument, etc.).
 
 model VectorStoreChunk {
   id          String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid

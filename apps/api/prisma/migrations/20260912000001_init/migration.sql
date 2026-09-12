@@ -1591,42 +1591,6 @@ CREATE TABLE "sso_identity_blocks" (
     CONSTRAINT "sso_identity_blocks_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
-CREATE TABLE "active_storage_blobs" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "byteSize" BIGINT NOT NULL,
-    "checksum" TEXT,
-    "contentType" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "filename" TEXT NOT NULL DEFAULT '',
-    "key" TEXT NOT NULL DEFAULT '',
-    "metadata" TEXT,
-    "serviceName" TEXT NOT NULL DEFAULT '',
-
-    CONSTRAINT "active_storage_blobs_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "active_storage_attachments" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "blobId" UUID NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "name" TEXT NOT NULL DEFAULT '',
-    "recordId" UUID NOT NULL,
-    "recordType" TEXT NOT NULL DEFAULT '',
-
-    CONSTRAINT "active_storage_attachments_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "active_storage_variant_records" (
-    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "blobId" UUID NOT NULL,
-    "variationDigest" TEXT NOT NULL DEFAULT '',
-
-    CONSTRAINT "active_storage_variant_records_pkey" PRIMARY KEY ("id")
-);
-
 -- CreateExtension
 CREATE EXTENSION IF NOT EXISTS "vector";
 
@@ -3448,16 +3412,12 @@ CREATE INDEX "index_sso_audit_logs_on_user_id" ON "sso_audit_logs"("userId");
 CREATE UNIQUE INDEX "index_sso_identity_blocks_on_provider_and_uid_digest" ON "sso_identity_blocks"("provider", "uidDigest");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "index_active_storage_blobs_on_key" ON "active_storage_blobs"("key");
 
 -- CreateIndex
-CREATE INDEX "index_active_storage_attachments_on_blob_id" ON "active_storage_attachments"("blobId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "index_active_storage_attachments_uniqueness" ON "active_storage_attachments"("recordType", "recordId", "name", "blobId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "index_active_storage_variant_records_uniqueness" ON "active_storage_variant_records"("blobId", "variationDigest");
 
 -- CreateIndex
 CREATE INDEX "index_vector_store_chunks_on_store_id" ON "vector_store_chunks"("storeId");
@@ -4123,10 +4083,8 @@ ALTER TABLE "eval_results" ADD CONSTRAINT "eval_results_evalRunId_fkey" FOREIGN 
 ALTER TABLE "eval_results" ADD CONSTRAINT "eval_results_evalSampleId_fkey" FOREIGN KEY ("evalSampleId") REFERENCES "eval_samples"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "active_storage_attachments" ADD CONSTRAINT "active_storage_attachments_blobId_fkey" FOREIGN KEY ("blobId") REFERENCES "active_storage_blobs"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "active_storage_variant_records" ADD CONSTRAINT "active_storage_variant_records_blobId_fkey" FOREIGN KEY ("blobId") REFERENCES "active_storage_blobs"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- CheckConstraints (ported 1:1 from source chk_*; enum-redundant ones omitted)
 ALTER TABLE "account_statements" ADD CONSTRAINT "chk_account_statements_byte_size_max" CHECK ("byteSize" <= 26214400);

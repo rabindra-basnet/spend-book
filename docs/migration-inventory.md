@@ -167,7 +167,7 @@ Queue priorities ported as-is: `scheduled(10) > high_priority(4) > medium_priori
 |---|---|---|
 | ActionCable + Turbo Streams (11 partials, 83 broadcasts, 100+ frames) | Nest WebSocket gateway (`modules/realtime`) for sync-status + AI chat streaming; SSE for chat tokens | Realtime (18) / AI (15) |
 | Turbo Frames lazy-loading / modal drawer / background-job console / vault | REST + TanStack Query (frontend concern, Prompt 2) | n/a |
-| ActiveStorage (S3/R2/GCS/local) | `@aws-sdk/client-s3` (or provider SDK) in `modules/storage`; presigned PUT/GET; attachments stay in `modules/transactions` | Storage (17) |
+| ActiveStorage (S3/R2/GCS/local) | `@aws-sdk/client-s3` (or provider SDK) in `modules/storage`; presigned PUT/GET; attachments stay in `modules/transactions`. **D12: the 3 `active_storage_*` tables are NOT ported** — file metadata is hoisted into owning models (`AccountStatement`, `FamilyDocument`, etc.), matching this plan. | Storage (17) |
 | Sidekiq Web + cron UI | BullMQ + `@nestjs/bullmq` admin (Bull Board) gated by admin | Ops (20) |
 | Rails Action Mailer | `@nestjs-modules/mailer` (Nodemailer) with rebranded templates | Notifications (17) |
 | Rails cache + ActionCable Redis | ioredis cache + BullMQ Redis (shared `REDIS_URL`) | Config (2) |
@@ -199,6 +199,7 @@ Queue priorities ported as-is: `scheduled(10) > high_priority(4) > medium_priori
 - **D9 Inserts idempotency**: transaction `external_id`+`idempotency_key` uniques + Stripe webhook idempotency are invariants to keep in Prisma uniques.
 - **D10 Family-scoping invariant**: every module query carries `family_id`; `@CurrentFamily` decorator (Milestone 7) is the enforcement point; the cross-family isolation test is the guard.
 - **D11 Personal finance rollover math**: goals/budget rollover + recurring occurrence windows are subtle — ported 1:1 first, tested (Milestones 11/10).
+- **D12 ActiveStorage not ported**: the 3 `active_storage_*` tables are intentionally excluded; file metadata is hoisted into owning models (`AccountStatement`, `FamilyDocument`, `FamilyExport`, `ArchivedExport`). The S3 SDK in `modules/storage` replaces ActiveStorage. Verified against `we-promise/sure` `db/schema.rb`: the only other non-ported tables are the 3 `oauth_*` (Doorkeeper, de-scoped by D1).
 
 ## 7. Backend scope cut (Parity checklist drives completion)
 
