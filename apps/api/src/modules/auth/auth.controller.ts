@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -31,7 +32,10 @@ import {
   PasskeyLoginOptionsDto,
   PasskeyLoginVerifyDto,
 } from './dto/webauthn.dto.js';
-import { AuthResponseEntity } from './entities/auth-response.entity.js';
+import {
+  RegisterResponseEntity,
+  TokenResponseEntity,
+} from './entities/auth-response.entity.js';
 import {
   BackupCodesEntity,
   MfaSetupEntity,
@@ -51,7 +55,7 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new user and family' })
-  @ApiOkResponse({ type: AuthResponseEntity })
+  @ApiCreatedResponse({ type: RegisterResponseEntity })
   @ApiUnauthorizedResponse({
     description: 'Validation error / closed registration / duplicate email',
   })
@@ -59,7 +63,7 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Ip() ip: string,
     @Headers('user-agent') userAgent?: string,
-  ): Promise<AuthResponseEntity> {
+  ): Promise<RegisterResponseEntity> {
     return this.auth.register(dto, { ipAddress: ip, userAgent });
   }
 
@@ -70,12 +74,12 @@ export class AuthController {
     summary:
       'Authenticate with email + password (+ optional TOTP / recovery code)',
   })
-  @ApiOkResponse({ type: AuthResponseEntity })
+  @ApiOkResponse({ type: TokenResponseEntity })
   login(
     @Body() dto: LoginDto,
     @Ip() ip: string,
     @Headers('user-agent') userAgent?: string,
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     return this.auth.login(dto, { ipAddress: ip, userAgent });
   }
 
@@ -83,12 +87,12 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Rotate the refresh token' })
-  @ApiOkResponse({ type: AuthResponseEntity })
+  @ApiOkResponse({ type: TokenResponseEntity })
   refresh(
     @Body() dto: RefreshTokenDto,
     @Ip() ip: string,
     @Headers('user-agent') userAgent?: string,
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     return this.auth.refresh(dto, { ipAddress: ip, userAgent });
   }
 
@@ -190,12 +194,12 @@ export class AuthController {
   @Post('passkey/verify')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Verify a passkey assertion and complete login' })
-  @ApiOkResponse({ type: AuthResponseEntity })
+  @ApiOkResponse({ type: TokenResponseEntity })
   passkeyLoginVerify(
     @Body() dto: PasskeyLoginVerifyDto,
     @Ip() ip: string,
     @Headers('user-agent') userAgent?: string,
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     return this.webauthn.loginVerify(dto, { ipAddress: ip, userAgent });
   }
 }

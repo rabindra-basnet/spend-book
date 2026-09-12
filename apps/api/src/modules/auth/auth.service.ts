@@ -4,6 +4,7 @@ import {
   ForbiddenException,
   Inject,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -24,7 +25,10 @@ import { LoginDto } from './dto/login.dto.js';
 import { LogoutDto } from './dto/logout.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
-import { AuthResponseEntity } from './entities/auth-response.entity.js';
+import {
+  RegisterResponseEntity,
+  TokenResponseEntity,
+} from './entities/auth-response.entity.js';
 import { BackupCodesEntity, MfaSetupEntity } from './entities/mfa.entity.js';
 import { UserProfileEntity } from './entities/user-profile.entity.js';
 
@@ -49,21 +53,22 @@ export interface SessionMetadata {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-    @Inject(CHALLENGE_STORE) private readonly challenges: ChallengeStore,
+    @Inject(CHALLENGE_STORE)
+    private readonly challenges: ChallengeStore,
   ) {}
 
   private get accessTokenTtlSeconds(): number {
-    return this.config.get<number>('auth.jwt.accessTokenTtlSeconds') ?? 900;
+    return this.config.getOrThrow<number>('auth.jwt.accessTokenTtlSeconds');
   }
 
   private get refreshTokenTtlSeconds(): number {
-    return (
-      this.config.get<number>('auth.jwt.refreshTokenTtlSeconds') ?? 2_592_000
-    );
+    return this.config.getOrThrow<number>('auth.jwt.refreshTokenTtlSeconds');
   }
 
   private get productName(): string {
@@ -73,22 +78,22 @@ export class AuthService {
   async register(
     dto: RegisterDto,
     metadata: SessionMetadata = {},
-  ): Promise<AuthResponseEntity> {
+  ): Promise<RegisterResponseEntity> {
     const onboardingState =
       this.config.get<string>('auth.onboardingState') ?? 'open';
     if (onboardingState === 'closed') {
-      throw new ForbiddenException('Registration is currently closed');
+      throw new UnauthorizedException('Registration is closed');
     }
 
     const email = dto.email.trim().toLowerCase();
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new ConflictException('Email is already registered');
+      throw new ConflictException('Email already registered');
     }
 
     const passwordDigest = await hash(dto.password, BCRYPT_ROUNDS);
 
-    const user = await this.prisma.$transaction(async (tx) => {
+    await this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock(${FIRST_USER_ADVISORY_LOCK})`;
       const userCount = await tx.user.count();
       const role = userCount === 0 ? 'super_admin' : 'member';
@@ -98,7 +103,7 @@ export class AuthService {
           timezone: dto.timezone ?? null,
         },
       });
-      return tx.user.create({
+      await tx.user.create({
         data: {
           email,
           firstName: dto.firstName ?? null,
@@ -112,13 +117,16 @@ export class AuthService {
       });
     });
 
-    return this.createAuthResponse(user, metadata);
+    return {
+      success: true,
+      message: 'User registered successfully',
+    };
   }
 
   async login(
     dto: LoginDto,
     metadata: SessionMetadata = {},
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     const email = dto.email.trim().toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordDigest || !user.active) {
@@ -153,7 +161,7 @@ export class AuthService {
   async refresh(
     dto: RefreshTokenDto,
     metadata: SessionMetadata = {},
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     const digest = this.refreshTokenDigest(dto.refreshToken);
     const session = await this.prisma.session.findUnique({
       where: { refreshTokenDigest: digest },
@@ -271,7 +279,7 @@ export class AuthService {
   async createAuthResponse(
     user: User,
     metadata: SessionMetadata = {},
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     const accessToken = await this.jwt.signAsync(
       {
         sub: user.id,
@@ -298,7 +306,6 @@ export class AuthService {
     });
 
     return {
-      user: this.toProfile(user),
       accessToken,
       tokenType: 'Bearer',
       accessTokenExpiresIn: this.accessTokenTtlSeconds,

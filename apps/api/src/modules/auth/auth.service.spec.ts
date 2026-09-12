@@ -138,8 +138,8 @@ describe('AuthService', () => {
         }),
       );
       expect(created.webauthnId).toBeTruthy();
-      expect(response.accessToken).toBe('access-token');
-      expect(response.user.role).toBe('super_admin');
+      expect(response.success).toBe(true);
+      expect(response.message).toBe('User registered successfully');
     });
 
     it('assigns member to subsequent users', async () => {

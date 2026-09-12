@@ -21,6 +21,7 @@ import type {
 import { PrismaService } from '../../database/prisma.service.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { AuthService, type SessionMetadata } from './auth.service.js';
+import { TokenResponseEntity } from './entities/auth-response.entity.js';
 import {
   CHALLENGE_STORE,
   type ChallengeStore,
@@ -30,7 +31,6 @@ import {
   PasskeyLoginVerifyDto,
 } from './dto/webauthn.dto.js';
 import { VerifyWebauthnRegistrationDto } from './dto/verify-webauthn-registration.dto.js';
-import { AuthResponseEntity } from './entities/auth-response.entity.js';
 import { PasskeyRegistrationResultEntity } from './entities/mfa.entity.js';
 
 const CHALLENGE_TTL_SECONDS = 300;
@@ -57,12 +57,19 @@ export class WebauthnService {
   ) {}
 
   private get rpId(): string {
-    return this.config.get<string>('auth.webauthnRpId') || 'localhost';
+    return (
+      this.config.get<string>('auth.webauthnRpId') ||
+      this.config.get<string>('app.domain') ||
+      'localhost'
+    );
   }
 
   private get allowedOrigins(): string[] {
-    const origins = this.config.get<string[]>('auth.webauthnAllowedOrigins');
-    return origins && origins.length > 0 ? origins : ['http://localhost:5173'];
+    const fromConfig = this.config.get<string[]>('auth.webauthnAllowedOrigins');
+    if (fromConfig && fromConfig.length > 0) {
+      return fromConfig;
+    }
+    return ['http://localhost:3000', 'http://localhost:5173'];
   }
 
   private get productName(): string {
@@ -205,7 +212,7 @@ export class WebauthnService {
   async loginVerify(
     dto: PasskeyLoginVerifyDto,
     metadata: SessionMetadata = {},
-  ): Promise<AuthResponseEntity> {
+  ): Promise<TokenResponseEntity> {
     if (!this.passkeyLoginEnabled) {
       throw new ForbiddenException('Passkey login is disabled');
     }

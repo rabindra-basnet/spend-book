@@ -1,10 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { UserProfileEntity } from './user-profile.entity.js';
 
-export class AuthResponseEntity {
-  @ApiProperty({ type: UserProfileEntity })
-  user!: UserProfileEntity;
-
+export class TokenResponseEntity {
   @ApiProperty()
   accessToken!: string;
 
@@ -16,4 +12,12 @@ export class AuthResponseEntity {
 
   @ApiProperty()
   refreshToken!: string;
+}
+
+export class RegisterResponseEntity {
+  @ApiProperty({ example: true })
+  success!: boolean;
+
+  @ApiProperty({ example: 'User registered successfully' })
+  message!: string;
 }
