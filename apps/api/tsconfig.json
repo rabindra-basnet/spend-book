@@ -18,7 +18,12 @@
     "strict": true,
     "strictPropertyInitialization": false,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@common/*": ["./src/common/*"],
+      "@modules/*": ["./src/modules/*"],
+      "@config/*": ["./src/config/*"],
+      "@database/*": ["./src/database/*"],
+      "@queues/*": ["./src/queues/*"]
     },
     "types": ["vitest/globals", "node"]
   }
