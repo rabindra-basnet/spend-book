@@ -32,6 +32,11 @@ nub run dev        # run all dev servers
 ### Running the API locally
 
 ```bash
+# first run: create your env file (only SECRET_KEY_BASE is strictly required)
+cp apps/api/.env.example apps/api/.env
+#   then edit apps/api/.env and set SECRET_KEY_BASE to a random value:
+#   openssl rand -hex 64
+
 # from the repo root (via Turborepo)
 nub run dev        # runs apps/api on http://localhost:3000
 
@@ -41,6 +46,10 @@ nub run start:dev  # hot-reload dev server
 # verify
 curl http://localhost:3000/health   # -> {"status":"ok"}
 ```
+
+Environment config is load-validated at boot by `@nestjs/config` + class-validator
+(`apps/api/src/config/validation.schema.ts`). A missing or malformed required
+variable fails fast with a readable error; `SECRET_KEY_BASE` is only waived in tests.
 
 Checks for `apps/api` (same scripts Turbo runs from the root):
 
