@@ -10,17 +10,17 @@
     "build": "prisma generate && nest build",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
+    "start": "prisma generate && nest start",
+    "start:dev": "prisma generate && nest start --watch",
+    "dev": "prisma generate && nest start --watch",
+    "start:debug": "prisma generate && nest start --debug --watch",
     "start:prod": "node dist/main",
     "lint": "oxlint src/ test/",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "prisma generate && vitest run --config ./vitest.config.e2e.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

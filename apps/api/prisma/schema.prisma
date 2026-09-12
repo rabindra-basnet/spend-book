@@ -1,13 +1,3357 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// Spend Book data model, ported faithfully from we-promise/sure db/schema.rb
+// (HEAD d723efb9d). Decisions per docs/migration-inventory.md §6:
+//   D5  Native PG enums + CHECK-string columns -> Prisma enums (exact spellings)
+//   D6  UUID PKs, except settings (bigint). OAuth tables de-scoped (D1).
+// Rows that Rails keeps unconstrained (e.g. STI `type` columns, role) stay String.
+// Partial / expression / GIN indexes, STORED generated columns and CHECK
+// constraints cannot be expressed in Prisma schema; they are applied in the
+// hand-edited initial migration (see prisma/migrations/<init>/migration.sql).
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  output   = "../src/database/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Native PG enums (schema.rb create_enum)
+enum AccountStatus {
+  ok
+  syncing
+  error
+  @@map("account_status")
+}
+
+enum GoalPledgeKind {
+  transfer
+  manual_save
+  @@map("goal_pledge_kind")
+}
+
+enum GoalPledgeStatus {
+  open
+  matched
+  cancelled
+  expired
+  @@map("goal_pledge_status")
+}
+
+// CHECK-string columns -> Prisma enums (D5)
+enum AccountSharePermission {
+  full_control
+  read_write
+  read_only
+  @@map("account_share_permission")
+}
+
+enum AccountStatementReviewStatus {
+  unmatched
+  linked
+  rejected
+  @@map("account_statement_review_status")
+}
+
+enum AccountStatementUploadStatus {
+  stored
+  failed
+  @@map("account_statement_upload_status")
+}
+
+enum DebugLogLevel {
+  debug
+  info
+  warn
+  error
+  @@map("debug_log_level")
+}
+
+enum FamilyDefaultAccountSharing {
+  shared
+  private
+  @@map("family_default_account_sharing")
+}
+
+enum GoalKind {
+  one_off
+  maintained
+  @@map("goal_kind")
+}
+
+enum GoalProgressBasis {
+  balance
+  contributions
+  @@map("goal_progress_basis")
+}
+
+enum GoalState {
+  active
+  paused
+  completed
+  archived
+  @@map("goal_state")
+}
+
+enum GoalTargetMode {
+  fixed
+  months_of_expenses
+  @@map("goal_target_mode")
+}
+
+enum ImportSessionStatus {
+  pending
+  importing
+  complete
+  failed
+  @@map("import_session_status")
+}
+
+enum ResourceType {
+  Account
+  Category
+  Tag
+  Merchant
+  RecurringTransaction
+  RecurringOccurrence
+  Transaction
+  Budget
+  Security
+  Rule
+  @@map("resource_type")
+}
+
+enum InsightPriority {
+  high
+  medium
+  low
+  @@map("insight_priority")
+}
+
+enum InsightStatus {
+  active
+  read
+  dismissed
+  expired
+  @@map("insight_status")
+}
+
+enum OnchainAssetKind {
+  native
+  erc20
+  spl
+  @@map("onchain_asset_kind")
+}
+
+enum AvmProvider {
+  rentcast
+  realie
+  @@map("avm_provider")
+}
+
+enum PushEnvironment {
+  sandbox
+  production
+  @@map("push_environment")
+}
+
+enum RecurrenceFrequency {
+  weekly
+  monthly
+  yearly
+  @@map("recurrence_frequency")
+}
+
+enum RecurringAllocationSource {
+  auto_matched
+  user_confirmed
+  user_created
+  @@map("recurring_allocation_source")
+}
+
+enum RecurringAllocationState {
+  suggested
+  confirmed
+  @@map("recurring_allocation_state")
+}
+
+enum RecurringOccurrenceStatus {
+  scheduled
+  paid
+  skipped
+  missed
+  @@map("recurring_occurrence_status")
+}
+
+enum RecurringOccurrenceClosedSource {
+  auto
+  user
+  @@map("recurring_occurrence_closed_source")
+}
+
+enum SecurityKind {
+  standard
+  cash
+  @@map("security_kind")
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy & identity
+// ---------------------------------------------------------------------------
+
+model Family {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aiPromptOverrides       Json     @default("{}")
+  assistantType           String   @default("builtin") @db.VarChar(255)
+  autoSyncOnLogin         Boolean  @default(true)
+  billsFeedToken          String?  @db.VarChar(255)
+  country                 String   @default("US") @db.VarChar(255)
+  createdAt               DateTime @default(now())
+  currency                String   @default("USD") @db.VarChar(255)
+  dataEnrichmentEnabled   Boolean  @default(false)
+  dateFormat              String   @default("%m-%d-%Y") @db.VarChar(255)
+  defaultAccountSharing   FamilyDefaultAccountSharing @default(shared)
+  earlyAccess             Boolean  @default(false)
+  enabledCurrencies       String[] @default([])
+  householdBudgetEnabled  Boolean  @default(true)
+  lastSyncAllAttemptedAt  DateTime?
+  latestSyncActivityAt    DateTime @default(now())
+  latestSyncCompletedAt   DateTime @default(now())
+  locale                  String   @default("en") @db.VarChar(255)
+  moniker                 String   @default("Family") @db.VarChar(255)
+  monthStartDay           Int      @default(1)
+  name                    String?  @db.VarChar(255)
+  personalBudgets         Boolean  @default(false)
+  recurringTransactionsDisabled Boolean @default(false)
+  stripeCustomerId        String?  @db.VarChar(255)
+  timezone                String?  @db.VarChar(255)
+  updatedAt               DateTime @updatedAt
+  vectorStoreId           String?  @db.VarChar(255)
+
+  users              User[]
+  invitations        Invitation[]
+  subscriptions      Subscription[]
+  imports            Import[]
+  insights           Insight[]
+  llmUsages          LlmUsage[]
+  accounts           Account[]
+  accountStatements  AccountStatement[]
+  categories         Category[]
+  merchants          Merchant[]
+  familyMerchantAssociations FamilyMerchantAssociation[]
+  tags               Tag[]
+  rules              Rule[]
+  recurringTransactions RecurringTransaction[]
+  recurringOccurrences RecurringOccurrence[]
+  budgets            Budget[]
+  goals              Goal[]
+  importSessions     ImportSession[]
+  importSourceMappings ImportSourceMapping[]
+  familyExports      FamilyExport[]
+  familyDocuments    FamilyDocument[]
+
+  @@unique([billsFeedToken], map: "index_families_on_bills_feed_token")
+  @@map("families")
+}
+
+model User {
+  id                        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  active                    Boolean   @default(true)
+  aiEnabled                 Boolean   @default(false)
+  createdAt                 DateTime  @default(now())
+  defaultAccountId          String?   @db.Uuid
+  defaultAccountOrder       String    @default("name_asc") @db.VarChar(255)
+  defaultPeriod             String    @default("last_30_days") @db.VarChar(255)
+  email                     String?   @db.VarChar(255)
+  familyId                  String    @db.Uuid
+  firstName                 String?   @db.VarChar(255)
+  goals                     String[]  @default([])
+  lastLoginAt               DateTime?
+  lastName                  String?   @db.VarChar(255)
+  lastViewedChatId          String?   @db.Uuid
+  locale                    String?   @db.VarChar(255)
+  onboardedAt               DateTime?
+  otpBackupCodes            String[]  @default([])
+  otpRequired               Boolean   @default(false)
+  otpSecret                 String?   @db.VarChar(255)
+  passwordDigest            String?   @db.VarChar(255)
+  preferences               Json      @default("{}")
+  role                      String    @default("member") @db.VarChar(255)
+  rulePromptDismissedAt     DateTime?
+  rulePromptsDisabled       Boolean   @default(false)
+  sessionsCount             Int       @default(0)
+  setOnboardingGoalsAt      DateTime?
+  setOnboardingPreferencesAt DateTime?
+  showAiSidebar             Boolean   @default(true)
+  showSidebar               Boolean   @default(true)
+  theme                     String    @default("system") @db.VarChar(255)
+  uiLayout                  String?   @db.VarChar(255)
+  unconfirmedEmail          String?   @db.VarChar(255)
+  updatedAt                 DateTime  @updatedAt
+  webauthnId                String?   @db.VarChar(255)
+
+  family                   Family    @relation(fields: [familyId], references: [id])
+  defaultAccount           Account?  @relation("UserDefaultAccount", fields: [defaultAccountId], references: [id], onDelete: SetNull)
+  defaultAccountRel        Account[] @relation("AccountOwner")
+  lastViewedChat           Chat?     @relation("UserLastViewedChat", fields: [lastViewedChatId], references: [id])
+  sessions                 Session[]
+  mobileDevices            MobileDevice[]
+  webauthnCredentials      WebauthnCredential[]
+  apiKeys                  ApiKey[]
+  pushSubscriptions        PushSubscription[]
+  oidcIdentities           OidcIdentity[]
+  impersonationSessionsRun ImpersonationSession[] @relation("ImpersonationImpersonator")
+  impersonationSessionsTargeted ImpersonationSession[] @relation("ImpersonationImpersonated")
+  invitationsSent          Invitation[] @relation("InvitationInviter")
+  budgetSharesOwned        BudgetShare[] @relation("BudgetShareOwner")
+  budgetSharesViewed       BudgetShare[] @relation("BudgetShareViewer")
+  budgets                  Budget[]
+  accountShares            AccountShare[]
+  chats                    Chat[]
+
+  @@unique([email], map: "index_users_on_email")
+  @@index([familyId], map: "index_users_on_family_id")
+  @@index([lastViewedChatId], map: "index_users_on_last_viewed_chat_id")
+  @@index([locale], map: "index_users_on_locale")
+  @@index([preferences], map: "index_users_on_preferences", type: Gin)
+  @@unique([otpSecret], map: "index_users_on_otp_secret")
+  @@unique([webauthnId], map: "index_users_on_webauthn_id")
+  @@map("users")
+}
+
+model Invitation {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  acceptedAt DateTime?
+  createdAt  DateTime  @default(now())
+  email      String?   @db.VarChar(255)
+  expiresAt  DateTime?
+  familyId   String    @db.Uuid
+  inviterId  String    @db.Uuid
+  role       String?   @db.VarChar(255)
+  token      String?   @db.VarChar(255)
+  tokenDigest String?  @db.VarChar(255)
+  updatedAt  DateTime  @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+  inviter User  @relation("InvitationInviter", fields: [inviterId], references: [id])
+
+  @@index([familyId], map: "index_invitations_on_family_id")
+  @@index([inviterId], map: "index_invitations_on_inviter_id")
+  @@unique([token], map: "index_invitations_on_token")
+  @@unique([tokenDigest], map: "index_invitations_on_token_digest")
+  @@index([email], map: "index_invitations_on_email")
+  @@map("invitations")
+}
+
+model InviteCode {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime @default(now())
+  token       String   @db.VarChar(255)
+  tokenDigest String?  @db.VarChar(255)
+  updatedAt   DateTime @updatedAt
+
+  @@unique([token], map: "index_invite_codes_on_token")
+  @@index([tokenDigest], map: "index_invite_codes_on_token_digest")
+  @@map("invite_codes")
+}
+
+model Session {
+  id                          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  activeImpersonatorSessionId String?  @db.Uuid
+  createdAt                   DateTime @default(now())
+  data                        Json?    @default("{}")
+  ipAddress                   String?  @db.VarChar(255)
+  ipAddressDigest             String?  @db.VarChar(255)
+  prevTransactionPageParams   Json?    @default("{}")
+  subscribedAt                DateTime?
+  updatedAt                   DateTime @updatedAt
+  userAgent                   String?  @db.VarChar(255)
+  userId                      String   @db.Uuid
+
+  user                 User                       @relation(fields: [userId], references: [id])
+  activeImpersonator   ImpersonationSession?      @relation("SessionActiveImpersonator", fields: [activeImpersonatorSessionId], references: [id], onDelete: SetNull)
+
+  @@index([activeImpersonatorSessionId], map: "index_sessions_on_active_impersonator_session_id")
+  @@index([ipAddressDigest], map: "index_sessions_on_ip_address_digest")
+  @@index([userId], map: "index_sessions_on_user_id")
+  @@map("sessions")
+}
+
+model MobileDevice {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appVersion  String?  @db.VarChar(255)
+  createdAt   DateTime @default(now())
+  deviceId    String?  @db.VarChar(255)
+  deviceName  String?  @db.VarChar(255)
+  deviceType  String?  @db.VarChar(255)
+  lastSeenAt  DateTime?
+  osVersion   String?  @db.VarChar(255)
+  updatedAt   DateTime @updatedAt
+  userId      String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, deviceId], map: "index_mobile_devices_on_user_id_and_device_id")
+  @@index([userId], map: "index_mobile_devices_on_user_id")
+  @@map("mobile_devices")
+}
+
+model WebauthnCredential {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt    DateTime @default(now())
+  credentialId String   @db.VarChar(255)
+  lastUsedAt   DateTime?
+  nickname     String   @db.VarChar(255)
+  publicKey    String   @db.Text
+  signCount    BigInt   @default(0)
+  transports   String[] @default([])
+  updatedAt    DateTime @updatedAt
+  userId       String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([credentialId], map: "index_webauthn_credentials_on_credential_id")
+  @@index([userId], map: "index_webauthn_credentials_on_user_id")
+  @@map("webauthn_credentials")
+}
+
+model ApiKey {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime @default(now())
+  displayKey  String   @db.VarChar(255)
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  name        String?  @db.VarChar(255)
+  revokedAt   DateTime?
+  scopes      Json?
+  source      String   @default("web") @db.VarChar(255)
+  updatedAt   DateTime @updatedAt
+  userId      String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([displayKey], map: "index_api_keys_on_display_key")
+  @@index([revokedAt], map: "index_api_keys_on_revoked_at")
+  @@index([userId, source], map: "index_api_keys_on_user_id_and_source")
+  @@index([userId], map: "index_api_keys_on_user_id")
+  @@map("api_keys")
+}
+
+model PushSubscription {
+  id                String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime        @default(now())
+  environment       PushEnvironment
+  lastRegisteredAt  DateTime
+  platform          String          @default("ios") @db.VarChar(255)
+  token             String          @db.VarChar(255)
+  updatedAt         DateTime        @updatedAt
+  userId            String          @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([lastRegisteredAt], map: "index_push_subscriptions_on_last_registered_at")
+  @@index([userId], map: "index_push_subscriptions_on_user_id")
+  @@map("push_subscriptions")
+}
+
+model OidcIdentity {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt           DateTime @default(now())
+  info                Json?    @default("{}")
+  issuer              String?  @db.VarChar(255)
+  lastAuthenticatedAt DateTime?
+  provider            String   @db.VarChar(255)
+  uid                 String   @db.VarChar(255)
+  updatedAt           DateTime @updatedAt
+  userId              String   @db.Uuid
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([issuer], map: "index_oidc_identities_on_issuer")
+  @@unique([provider, uid], map: "index_oidc_identities_on_provider_and_uid")
+  @@index([userId], map: "index_oidc_identities_on_user_id")
+  @@map("oidc_identities")
+}
+
+model ImpersonationSession {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt      DateTime @default(now())
+  impersonatedId String   @db.Uuid
+  impersonatorId String   @db.Uuid
+  status         String   @default("pending") @db.VarChar(255)
+  updatedAt      DateTime @updatedAt
+
+  impersonated User    @relation("ImpersonationImpersonated", fields: [impersonatedId], references: [id])
+  impersonator User    @relation("ImpersonationImpersonator", fields: [impersonatorId], references: [id])
+  logs         ImpersonationSessionLog[]
+  sessions     Session[] @relation("SessionActiveImpersonator")
+
+  @@index([impersonatedId], map: "index_impersonation_sessions_on_impersonated_id")
+  @@index([impersonatorId], map: "index_impersonation_sessions_on_impersonator_id")
+  @@map("impersonation_sessions")
+}
+
+model ImpersonationSessionLog {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action                 String?  @db.VarChar(255)
+  controller             String?  @db.VarChar(255)
+  createdAt              DateTime @default(now())
+  impersonationSessionId String   @db.Uuid
+  ipAddress              String?  @db.VarChar(255)
+  method                 String?  @db.VarChar(255)
+  path                   String?  @db.Text
+  updatedAt              DateTime @updatedAt
+  userAgent              String?  @db.Text
+
+  impersonationSession ImpersonationSession @relation(fields: [impersonationSessionId], references: [id])
+
+  @@index([impersonationSessionId], map: "index_impersonation_session_logs_on_impersonation_session_id")
+  @@map("impersonation_session_logs")
+}
+
+model Setting {
+  id        BigInt   @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  value     String?  @db.Text
+  var       String   @db.VarChar(255)
+
+  @@unique([var], map: "index_settings_on_var")
+  @@map("settings")
+}
+
+model Subscription {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  amount               Decimal? @db.Decimal(19, 4)
+  cancelAtPeriodEnd    Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  currency             String?  @db.VarChar(255)
+  currentPeriodEndsAt  DateTime?
+  familyId             String   @db.Uuid
+  interval             String?  @db.VarChar(255)
+  status               String   @db.VarChar(255)
+  stripeId             String?  @db.VarChar(255)
+  trialEndsAt          DateTime?
+  updatedAt            DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@unique([familyId], map: "index_subscriptions_on_family_id")
+  @@map("subscriptions")
+}
+
+// ---------------------------------------------------------------------------
+// Accounts & portfolio
+// ---------------------------------------------------------------------------
+
+model AccountProvider {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId    String   @db.Uuid
+  createdAt    DateTime @default(now())
+  providerId   String   @db.Uuid
+  providerType String
+  updatedAt    DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, providerType], map: "index_account_providers_on_account_and_provider_type")
+  @@unique([providerType, providerId], map: "index_account_providers_on_provider_type_and_provider_id")
+  @@map("account_providers")
+}
+
+model AccountShare {
+  id                String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId         String                 @db.Uuid
+  createdAt         DateTime               @default(now())
+  includeInFinances Boolean                @default(true)
+  permission        AccountSharePermission @default(read_only)
+  updatedAt         DateTime               @updatedAt
+  userId            String                 @db.Uuid
+
+  account Account @relation(fields: [accountId], references: [id])
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([accountId, userId], map: "index_account_shares_on_account_id_and_user_id")
+  @@index([accountId], map: "index_account_shares_on_account_id")
+  @@index([userId, includeInFinances], map: "index_account_shares_on_user_id_and_include_in_finances")
+  @@index([userId], map: "index_account_shares_on_user_id")
+  @@map("account_shares")
+}
+
+model AccountStatement {
+  id                    String                         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?                        @db.Uuid
+  accountLast4Hint      String?                        @db.VarChar(4)
+  accountNameHint       String?                        @db.VarChar(200)
+  byteSize              BigInt
+  checksum              String                         @db.VarChar(64)
+  closingBalance        Decimal?                       @db.Decimal(19, 4)
+  contentSha256         String?
+  contentType           String                         @db.VarChar(100)
+  createdAt             DateTime                       @default(now())
+  currency              String?                        @db.VarChar(3)
+  familyId              String                         @db.Uuid
+  filename              String                         @db.VarChar(255)
+  institutionNameHint   String?                        @db.VarChar(200)
+  matchConfidence       Decimal?                       @db.Decimal(5, 4)
+  openingBalance        Decimal?                       @db.Decimal(19, 4)
+  parserConfidence      Decimal?                       @db.Decimal(5, 4)
+  periodEndOn           DateTime?
+  periodStartOn         DateTime?
+  reviewStatus          AccountStatementReviewStatus   @default(unmatched)
+  sanitizedParserOutput Json                           @default("{}")
+  source                String                         @default("manual_upload") @db.VarChar(255)
+  suggestedAccountId    String?                        @db.Uuid
+  updatedAt             DateTime                       @updatedAt
+  uploadStatus          AccountStatementUploadStatus   @default(stored)
+
+  account           Account?               @relation(fields: [accountId], references: [id])
+  family            Family                 @relation(fields: [familyId], references: [id])
+  suggestedAccount  Account?               @relation("AccountStatementSuggestedAccount", fields: [suggestedAccountId], references: [id])
+  reconciledEntries Entry[]
+  imports           Import[]
+
+  @@index([accountId, periodStartOn, periodEndOn], map: "index_account_statements_on_account_period")
+  @@index([accountId], map: "index_account_statements_on_account_id")
+  @@index([familyId, checksum], map: "index_account_statements_on_family_checksum")
+  @@unique([familyId, contentSha256], map: "index_account_statements_on_family_content_sha256")
+  @@index([familyId, reviewStatus], map: "index_account_statements_on_family_review_status")
+  @@index([familyId], map: "index_account_statements_on_family_id")
+  @@index([suggestedAccountId, reviewStatus], map: "index_account_statements_on_suggested_account_review")
+  @@index([suggestedAccountId], map: "index_account_statements_on_suggested_account_id")
+  @@map("account_statements")
+}
+
+model Account {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountableId          String?  @db.Uuid
+  accountableType        String?
+  accountProvidersCount  Int      @default(0)
+  balance                Decimal? @db.Decimal(19, 4)
+  cashBalance            Decimal  @default("0") @db.Decimal(19, 4)
+  classification         String?
+  createdAt              DateTime @default(now())
+  currency               String?
+  disabledAt             DateTime?
+  enableCategoryMatcher  Boolean  @default(true)
+  excludeFromReports     Boolean  @default(false)
+  familyId               String   @db.Uuid
+  importId               String?  @db.Uuid
+  institutionDomain      String?
+  institutionName        String?
+  lockedAttributes       Json?    @default("{}")
+  name                   String?
+  notes                  String?  @db.Text
+  ownerId                String?  @db.Uuid
+  plaidAccountId         String?  @db.Uuid
+  simplefinAccountId     String?  @db.Uuid
+  status                 String   @default("active")
+  subtype                String?
+  updatedAt              DateTime @updatedAt
+
+  family              Family               @relation(fields: [familyId], references: [id])
+  owner               User?                @relation("AccountOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  import              Import?              @relation("AccountImport", fields: [importId], references: [id], onDelete: SetNull)
+  accountShares       AccountShare[]
+  accountProviders    AccountProvider[]
+  accountStatements   AccountStatement[]
+  suggestedStatements AccountStatement[]   @relation("AccountStatementSuggestedAccount")
+  balances            Balance[]
+  holdings            Holding[]
+  entries             Entry[]
+  goalAccounts        GoalAccount[]
+  goalPledges         GoalPledge[]
+  recurringTransactions RecurringTransaction[] @relation("RecurringTransactionAccount")
+  destinationRecurringTransactions RecurringTransaction[] @relation("RecurringTransactionDestinationAccount")
+  defaultAccountForUsers User[]              @relation("UserDefaultAccount")
+  importAccounts        Import[]             @relation("ImportAccount")
+
+  @@index([accountableId, accountableType], map: "index_accounts_on_accountable_id_and_accountable_type")
+  @@index([accountableType], map: "index_accounts_on_accountable_type")
+  @@index([currency], map: "index_accounts_on_currency")
+  @@index([familyId, accountableType], map: "index_accounts_on_family_id_and_accountable_type")
+  @@index([familyId, excludeFromReports], map: "index_accounts_on_family_id_and_exclude_from_reports")
+  @@index([familyId, id], map: "index_accounts_on_family_id_and_id")
+  @@index([familyId, status, accountableType], map: "index_accounts_on_family_id_status_accountable_type")
+  @@index([familyId, status], map: "index_accounts_on_family_id_and_status")
+  @@index([familyId], map: "index_accounts_on_family_id")
+  @@index([importId], map: "index_accounts_on_import_id")
+  @@index([ownerId], map: "index_accounts_on_owner_id")
+  @@index([plaidAccountId], map: "index_accounts_on_plaid_account_id")
+  @@index([simplefinAccountId], map: "index_accounts_on_simplefin_account_id")
+  @@index([status], map: "index_accounts_on_status")
+  @@map("accounts")
+}
+
+model Address {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  addressableId   String?  @db.Uuid
+  addressableType String?
+  country         String?
+  county          String?
+  createdAt       DateTime @default(now())
+  line1           String?
+  line2           String?
+  locality        String?
+  postalCode      String?
+  region          String?
+  updatedAt       DateTime @updatedAt
+
+  @@index([addressableType, addressableId], map: "index_addresses_on_addressable")
+  @@map("addresses")
+}
+
+model Balance {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId         String   @db.Uuid
+  balance           Decimal  @db.Decimal(19, 4)
+  cashAdjustments   Decimal  @default("0") @db.Decimal(19, 4)
+  cashBalance       Decimal? @default("0") @db.Decimal(19, 4)
+  cashInflows       Decimal  @default("0") @db.Decimal(19, 4)
+  cashOutflows      Decimal  @default("0") @db.Decimal(19, 4)
+  createdAt         DateTime @default(now())
+  currency          String   @default("USD")
+  date              DateTime
+  endBalance        Decimal?
+  endCashBalance    Decimal?
+  endNonCashBalance Decimal?
+  flowsFactor       Int      @default(1)
+  netMarketFlows    Decimal  @default("0") @db.Decimal(19, 4)
+  nonCashAdjustments Decimal @default("0") @db.Decimal(19, 4)
+  nonCashInflows    Decimal  @default("0") @db.Decimal(19, 4)
+  nonCashOutflows   Decimal  @default("0") @db.Decimal(19, 4)
+  startBalance      Decimal?
+  startCashBalance  Decimal  @default("0") @db.Decimal(19, 4)
+  startNonCashBalance Decimal @default("0") @db.Decimal(19, 4)
+  updatedAt         DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+
+  @@unique([accountId, date, currency], map: "index_account_balances_on_account_id_date_currency_unique")
+  @@index([accountId, date(sort: Desc)], map: "index_balances_on_account_id_and_date")
+  @@index([accountId], map: "index_balances_on_account_id")
+  @@map("balances")
+}
+
+model CreditCard {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  annualFee        Decimal? @db.Decimal(10, 2)
+  apr              Decimal? @db.Decimal(10, 2)
+  availableCredit  Decimal? @db.Decimal(10, 2)
+  createdAt        DateTime @default(now())
+  expirationDate   DateTime?
+  lockedAttributes Json?    @default("{}")
+  minimumPayment   Decimal? @db.Decimal(10, 2)
+  subtype          String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("credit_cards")
+}
+
+model Crypto {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  lockedAttributes Json?    @default("{}")
+  subtype          String?
+  taxTreatment     String   @default("taxable")
+  updatedAt        DateTime @updatedAt
+
+  @@map("cryptos")
+}
+
+model Depository {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  lockedAttributes Json?    @default("{}")
+  subtype          String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("depositories")
+}
+
+model ExchangeRatePair {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt           DateTime @default(now())
+  firstProviderRateOn DateTime?
+  fromCurrency        String
+  providerName        String?
+  toCurrency          String
+  updatedAt           DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency], map: "index_exchange_rate_pairs_on_pair_unique")
+  @@map("exchange_rate_pairs")
+}
+
+model ExchangeRate {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt    DateTime @default(now())
+  date         DateTime
+  fromCurrency String
+  rate         Decimal
+  toCurrency   String
+  updatedAt    DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency, date], map: "index_exchange_rates_on_base_converted_date_unique")
+  @@index([fromCurrency], map: "index_exchange_rates_on_from_currency")
+  @@index([toCurrency], map: "index_exchange_rates_on_to_currency")
+  @@map("exchange_rates")
+}
+
+model Holding {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId         String   @db.Uuid
+  accountProviderId String?  @db.Uuid
+  amount            Decimal  @db.Decimal(19, 4)
+  costBasis         Decimal? @db.Decimal(19, 4)
+  costBasisLocked   Boolean  @default(false)
+  costBasisSource   String?
+  createdAt         DateTime @default(now())
+  currency          String
+  date              DateTime
+  externalId        String?
+  price             Decimal  @db.Decimal(19, 4)
+  providerSecurityId String? @db.Uuid
+  qty               Decimal  @db.Decimal(34, 18)
+  securityId        String   @db.Uuid
+  securityLocked    Boolean  @default(false)
+  updatedAt         DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id])
+  security Security @relation(fields: [securityId], references: [id])
+
+  @@unique([accountId, externalId], map: "idx_holdings_on_account_id_external_id_unique")
+  @@unique([accountId, securityId, date, currency], map: "idx_on_account_id_security_id_date_currency_5323e39f8b")
+  @@index([accountId], map: "index_holdings_on_account_id")
+  @@index([accountProviderId], map: "index_holdings_on_account_provider_id")
+  @@index([providerSecurityId], map: "index_holdings_on_provider_security_id")
+  @@index([securityId], map: "index_holdings_on_security_id")
+  @@map("holdings")
+}
+
+model Investment {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  lockedAttributes Json?    @default("{}")
+  subtype          String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("investments")
+}
+
+model Loan {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  initialBalance   Decimal? @db.Decimal(19, 4)
+  interestRate     Decimal? @db.Decimal(10, 3)
+  lockedAttributes Json?    @default("{}")
+  rateType         String?
+  subtype          String?
+  termMonths       Int?
+  updatedAt        DateTime @updatedAt
+
+  @@map("loans")
+}
+
+model OtherAsset {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  lockedAttributes Json?    @default("{}")
+  subtype          String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("other_assets")
+}
+
+model OtherLiability {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  lockedAttributes Json?    @default("{}")
+  subtype          String?
+  updatedAt        DateTime @updatedAt
+
+  @@map("other_liabilities")
+}
+
+model Property {
+  id               String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  areaUnit         String?
+  areaValue        Int?
+  avmLastSyncedOn  DateTime?
+  avmProvider      AvmProvider?
+  createdAt        DateTime   @default(now())
+  lockedAttributes Json?      @default("{}")
+  subtype          String?
+  updatedAt        DateTime   @updatedAt
+  yearBuilt        Int?
+
+  @@index([avmLastSyncedOn(nulls: First)], map: "index_properties_on_avm_provider_sync")
+  @@map("properties")
+}
+
+model Security {
+  id                    String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  countryCode           String?
+  createdAt             DateTime    @default(now())
+  exchangeAcronym       String?
+  exchangeMic           String?
+  exchangeOperatingMic  String?
+  failedFetchAt         DateTime?
+  failedFetchCount      Int         @default(0)
+  firstProviderPriceOn  DateTime?
+  kind                  SecurityKind @default(standard)
+  lastHealthCheckAt     DateTime?
+  logoUrl               String?
+  name                  String?
+  offline               Boolean     @default(false)
+  offlineReason         String?
+  priceProvider         String?
+  ticker                String
+  updatedAt             DateTime    @updatedAt
+  websiteUrl            String?
+
+  holdings       Holding[]
+  securityPrices SecurityPrice[]
+  trades         Trade[]
+
+  @@index([countryCode], map: "index_securities_on_country_code")
+  @@index([exchangeOperatingMic], map: "index_securities_on_exchange_operating_mic")
+  @@index([kind], map: "index_securities_on_kind")
+  @@index([priceProvider, offlineReason], map: "index_securities_on_price_provider_and_offline_reason")
+  @@index([priceProvider], map: "index_securities_on_price_provider")
+  @@map("securities")
+}
+
+model SecurityPrice {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime @default(now())
+  currency   String   @default("USD")
+  date       DateTime
+  price      Decimal  @db.Decimal(19, 4)
+  provisional Boolean @default(false)
+  securityId String?  @db.Uuid
+  updatedAt  DateTime @updatedAt
+
+  security Security? @relation(fields: [securityId], references: [id])
+
+  @@unique([securityId, date, currency], map: "index_security_prices_on_security_id_and_date_and_currency")
+  @@index([securityId], map: "index_security_prices_on_security_id")
+  @@map("security_prices")
+}
+
+model Trade {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt               DateTime @default(now())
+  currency                String?
+  extra                   Json     @default("{}")
+  fee                     Decimal  @default("0") @db.Decimal(19, 4)
+  investmentActivityLabel String?
+  lockedAttributes        Json?    @default("{}")
+  price                   Decimal? @db.Decimal(19, 10)
+  qty                     Decimal? @db.Decimal(34, 18)
+  securityId              String   @db.Uuid
+  updatedAt               DateTime @updatedAt
+
+  security Security @relation(fields: [securityId], references: [id])
+
+  @@index([extra], map: "index_trades_on_extra", type: Gin)
+  @@index([investmentActivityLabel], map: "index_trades_on_investment_activity_label")
+  @@index([securityId], map: "index_trades_on_security_id")
+  @@map("trades")
+}
+
+model Valuation {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  kind             String   @default("reconciliation")
+  lockedAttributes Json?    @default("{}")
+  updatedAt        DateTime @updatedAt
+
+  @@map("valuations")
+}
+
+model Vehicle {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt        DateTime @default(now())
+  lockedAttributes Json?    @default("{}")
+  make             String?
+  mileageUnit      String?
+  mileageValue     Int?
+  model            String?
+  subtype          String?
+  updatedAt        DateTime @updatedAt
+  year             Int?
+
+  @@map("vehicles")
+}
+
+// ---------------------------------------------------------------------------
+// Transactions, rules, categories, merchants, tags, budgets & goals
+// ---------------------------------------------------------------------------
+
+model Entry {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId                String   @db.Uuid
+  amount                   Decimal  @db.Decimal(19, 4)
+  createdAt                DateTime @default(now())
+  currency                 String?
+  date                     DateTime?
+  entryableId              String?  @db.Uuid
+  entryableType            String?
+  excluded                 Boolean  @default(false)
+  externalId               String?
+  idempotencyKey           String?
+  importId                 String?  @db.Uuid
+  importLocked             Boolean  @default(false)
+  lockedAttributes         Json?    @default("{}")
+  name                     String
+  notes                    String?  @db.Text
+  parentEntryId            String?  @db.Uuid
+  plaidId                  String?
+  reconciledAt             DateTime?
+  reconciledByStatementId  String?  @db.Uuid
+  source                   String?
+  updatedAt                DateTime @updatedAt
+  userModified             Boolean  @default(false)
+
+  account             Account         @relation(fields: [accountId], references: [id])
+  import              Import?         @relation(fields: [importId], references: [id], onDelete: SetNull)
+  parentEntry         Entry?          @relation("EntryParent", fields: [parentEntryId], references: [id], onDelete: SetNull)
+  childrenEntries     Entry[]         @relation("EntryParent")
+  reconciledByStatement AccountStatement? @relation(fields: [reconciledByStatementId], references: [id], onDelete: SetNull)
+  recurringAllocations  RecurringAllocation[]
+  recurringMatchRejections RecurringMatchRejection[]
+  recurringPriceChanges RecurringPriceChange[]
+
+  @@unique([accountId, idempotencyKey], map: "index_entries_on_account_and_idempotency_key")
+  @@unique([accountId, source, externalId], map: "index_entries_on_account_source_and_external_id")
+  @@index([accountId, date, entryableId], map: "index_entries_on_investment_totals_lookup")
+  @@index([accountId, date], map: "index_entries_on_account_id_and_date")
+  @@index([accountId, reconciledAt], map: "index_entries_on_account_and_reconciled_at")
+  @@index([accountId], map: "index_entries_on_account_id")
+  @@index([currency, amount, date, accountId], map: "index_entries_on_transfer_match_lookup")
+  @@index([date], map: "index_entries_on_date")
+  @@index([entryableType], map: "index_entries_on_entryable_type")
+  @@index([importId], map: "index_entries_on_import_id")
+  @@index([importLocked], map: "index_entries_on_import_locked_true")
+  @@index([parentEntryId], map: "index_entries_on_parent_entry_id")
+  @@index([reconciledByStatementId], map: "index_entries_on_reconciled_by_statement")
+  @@index([userModified], map: "index_entries_on_user_modified_true")
+  @@map("entries")
+}
+
+model Transaction {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  categoryId              String?  @db.Uuid
+  createdAt               DateTime @default(now())
+  externalId              String?
+  extra                   Json     @default("{}")
+  investmentActivityLabel String?
+  kind                    String   @default("standard")
+  lockedAttributes        Json?    @default("{}")
+  merchantId              String?  @db.Uuid
+  transferId              String?  @db.Uuid
+  updatedAt               DateTime @updatedAt
+
+  category              Category?            @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  merchant              Merchant?            @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  transfer              Transfer?            @relation("TransactionTransfer", fields: [transferId], references: [id], onDelete: SetNull)
+  transfersAsInflow     Transfer[]           @relation("TransferInflow")
+  transfersAsOutflow    Transfer[]           @relation("TransferOutflow")
+  rejectedTransfersAsInflow  RejectedTransfer[] @relation("RejectedTransferInflow")
+  rejectedTransfersAsOutflow RejectedTransfer[] @relation("RejectedTransferOutflow")
+  notificationDeliveries NotificationDelivery[]
+  goalPledgeMatches     GoalPledge[]
+
+  @@index([categoryId], map: "index_transactions_on_category_id")
+  @@index([externalId], map: "index_transactions_on_external_id")
+  @@index([extra], map: "index_transactions_on_extra", type: Gin)
+  @@index([investmentActivityLabel], map: "index_transactions_on_investment_activity_label")
+  @@index([kind], map: "index_transactions_on_kind")
+  @@index([merchantId], map: "index_transactions_on_merchant_id")
+  @@index([transferId], map: "index_transactions_on_transfer_id")
+  @@map("transactions")
+}
+
+model Transfer {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  amount                Decimal  @default("0") @db.Decimal(19, 4)
+  createdAt             DateTime @default(now())
+  inflowTransactionId   String   @db.Uuid
+  notes                 String?  @db.Text
+  outflowTransactionId  String   @db.Uuid
+  status                String   @default("pending")
+  updatedAt             DateTime @updatedAt
+
+  inflowTransaction  Transaction @relation("TransferInflow", fields: [inflowTransactionId], references: [id])
+  outflowTransaction Transaction @relation("TransferOutflow", fields: [outflowTransactionId], references: [id])
+  transactions       Transaction[] @relation("TransactionTransfer")
+
+  @@unique([inflowTransactionId, outflowTransactionId], map: "idx_on_inflow_transaction_id_outflow_transaction_id_8cd07a28bd")
+  @@index([inflowTransactionId], map: "index_transfers_on_inflow_transaction_id")
+  @@index([outflowTransactionId], map: "index_transfers_on_outflow_transaction_id")
+  @@index([status], map: "index_transfers_on_status")
+  @@map("transfers")
+}
+
+model RejectedTransfer {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt             DateTime @default(now())
+  inflowTransactionId   String   @db.Uuid
+  outflowTransactionId  String   @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  inflowTransaction  Transaction @relation("RejectedTransferInflow", fields: [inflowTransactionId], references: [id])
+  outflowTransaction Transaction @relation("RejectedTransferOutflow", fields: [outflowTransactionId], references: [id])
+
+  @@unique([inflowTransactionId, outflowTransactionId], map: "idx_on_inflow_transaction_id_outflow_transaction_id_412f8e7e26")
+  @@index([inflowTransactionId], map: "index_rejected_transfers_on_inflow_transaction_id")
+  @@index([outflowTransactionId], map: "index_rejected_transfers_on_outflow_transaction_id")
+  @@map("rejected_transfers")
+}
+
+model Category {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  classificationUnused  String   @default("expense")
+  color                 String   @default("#6172F3")
+  createdAt             DateTime @default(now())
+  familyId              String   @db.Uuid
+  lastUsedAt            DateTime?
+  lucideIcon            String   @default("shapes")
+  name                  String
+  parentId              String?  @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  family   Family   @relation(fields: [familyId], references: [id])
+  parent   Category? @relation("CategoryParent", fields: [parentId], references: [id], onDelete: SetNull)
+  children Category[] @relation("CategoryParent")
+  transactions Transaction[]
+  budgetCategories BudgetCategory[]
+  recurringTransactions RecurringTransaction[]
+
+  @@unique([familyId, name], map: "index_categories_on_family_id_and_name")
+  @@index([familyId, lastUsedAt], map: "index_categories_on_family_id_and_last_used_at")
+  @@index([familyId], map: "index_categories_on_family_id")
+  @@map("categories")
+}
+
+model Merchant {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  color                String?
+  createdAt            DateTime @default(now())
+  familyId             String?  @db.Uuid
+  logoUrl              String?
+  name                 String
+  providerMerchantId   String?
+  source               String?
+  type                 String
+  updatedAt            DateTime @updatedAt
+  websiteUrl           String?
+
+  family                   Family?                      @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  familyMerchantAssociations FamilyMerchantAssociation[]
+  transactions             Transaction[]
+  recurringTransactions    RecurringTransaction[]
+
+  @@index([familyId], map: "index_merchants_on_family_id")
+  @@index([type], map: "index_merchants_on_type")
+  @@map("merchants")
+}
+
+model FamilyMerchantAssociation {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt   DateTime @default(now())
+  familyId    String   @db.Uuid
+  merchantId  String   @db.Uuid
+  unlinkedAt  DateTime?
+  updatedAt   DateTime @updatedAt
+
+  family   Family   @relation(fields: [familyId], references: [id])
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@unique([familyId, merchantId], map: "idx_on_family_id_merchant_id_23e883e08f")
+  @@index([familyId], map: "index_family_merchant_associations_on_family_id")
+  @@index([merchantId], map: "index_family_merchant_associations_on_merchant_id")
+  @@map("family_merchant_associations")
+}
+
+model Tag {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  color     String   @default("#e99537")
+  createdAt DateTime @default(now())
+  familyId  String   @db.Uuid
+  name      String?
+  updatedAt DateTime @updatedAt
+
+  family   Family    @relation(fields: [familyId], references: [id])
+  taggings Tagging[]
+
+  @@unique([familyId, name], map: "index_tags_on_family_id_and_name")
+  @@index([familyId], map: "index_tags_on_family_id")
+  @@map("tags")
+}
+
+model Tagging {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime @default(now())
+  tagId         String   @db.Uuid
+  taggableId    String?  @db.Uuid
+  taggableType  String?
+  updatedAt     DateTime @updatedAt
+
+  tag Tag @relation(fields: [tagId], references: [id])
+
+  @@index([tagId], map: "index_taggings_on_tag_id")
+  @@index([taggableType, taggableId], map: "index_taggings_on_taggable")
+  @@map("taggings")
+}
+
+model Rule {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  active        Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  effectiveDate DateTime?
+  familyId      String   @db.Uuid
+  name          String?
+  resourceType  String
+  updatedAt     DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+  ruleConditions RuleCondition[]
+  ruleActions    RuleAction[]
+  ruleRuns       RuleRun[]
+  notificationDeliveries NotificationDelivery[]
+
+  @@index([familyId], map: "index_rules_on_family_id")
+  @@map("rules")
+}
+
+model RuleCondition {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conditionType String
+  createdAt     DateTime @default(now())
+  operator      String
+  parentId      String?  @db.Uuid
+  ruleId        String?  @db.Uuid
+  updatedAt     DateTime @updatedAt
+  value         String?
+
+  rule   Rule?        @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  parent RuleCondition? @relation("RuleConditionParent", fields: [parentId], references: [id], onDelete: Cascade)
+  children RuleCondition[] @relation("RuleConditionParent")
+
+  @@index([parentId], map: "index_rule_conditions_on_parent_id")
+  @@index([ruleId], map: "index_rule_conditions_on_rule_id")
+  @@map("rule_conditions")
+}
+
+model RuleAction {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actionType String
+  createdAt  DateTime @default(now())
+  ruleId     String   @db.Uuid
+  updatedAt  DateTime @updatedAt
+  value      String?
+
+  rule Rule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([ruleId], map: "index_rule_actions_on_rule_id")
+  @@map("rule_actions")
+}
+
+model RuleRun {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt             DateTime @default(now())
+  errorMessage          String?  @db.Text
+  executedAt            DateTime
+  executionType         String
+  pendingJobsCount      Int      @default(0)
+  ruleId                String   @db.Uuid
+  ruleName              String?
+  status                String
+  transactionsModified  Int      @default(0)
+  transactionsProcessed Int      @default(0)
+  transactionsQueued    Int      @default(0)
+  updatedAt             DateTime @updatedAt
+
+  rule Rule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@index([executedAt], map: "index_rule_runs_on_executed_at")
+  @@index([ruleId, executedAt], map: "index_rule_runs_on_rule_id_and_executed_at")
+  @@index([ruleId], map: "index_rule_runs_on_rule_id")
+  @@map("rule_runs")
+}
+
+model NotificationDelivery {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime @default(now())
+  ruleId        String   @db.Uuid
+  transactionId String   @db.Uuid
+  updatedAt     DateTime @updatedAt
+
+  rule        Rule        @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, transactionId], map: "index_notification_deliveries_on_rule_and_transaction")
+  @@index([ruleId], map: "index_notification_deliveries_on_rule_id")
+  @@index([transactionId], map: "index_notification_deliveries_on_transaction_id")
+  @@map("notification_deliveries")
+}
+
+model RecurringTransaction {
+  id                      String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId               String?   @db.Uuid
+  amount                  Decimal   @db.Decimal(19, 4)
+  amountStrategy          String    @default("fixed")
+  amountTolerancePct      Decimal   @default("7.5") @db.Decimal(5, 2)
+  anchorDate              DateTime?
+  autopay                 Boolean   @default(false)
+  billType                String    @default("bill")
+  cancelledOn             DateTime?
+  categoryId              String?   @db.Uuid
+  createdAt               DateTime  @default(now())
+  currency                String
+  dedupScope              String    @default("")
+  destinationAccountId    String?   @db.Uuid
+  endAfterCount           Int?
+  endMode                 String    @default("never")
+  endOn                   DateTime?
+  expectedAmountAvg       Decimal?  @db.Decimal(19, 4)
+  expectedAmountMax       Decimal?  @db.Decimal(19, 4)
+  expectedAmountMin       Decimal?  @db.Decimal(19, 4)
+  expectedDayOfMonth      Int
+  familyId                String    @db.Uuid
+  holidayCalendar         String?
+  lastOccurrenceDate      DateTime
+  manual                  Boolean   @default(false)
+  matchDaysEarly          Int       @default(2)
+  matchDaysLate           Int       @default(7)
+  matcherHints            Json      @default("{}")
+  merchantId              String?   @db.Uuid
+  name                    String?
+  nextExpectedDate        DateTime
+  notes                   String?   @db.Text
+  notifyDaysBefore        Int?
+  occurrenceCount         Int       @default(0)
+  overdueGraceDays        Int?
+  paymentUrl              String?
+  renewsOn                DateTime?
+  replacedById            String?   @db.Uuid
+  status                  String    @default("active")
+  trialEndsOn             DateTime?
+  upcomingWindowDays      Int?
+  updatedAt               DateTime  @updatedAt
+  weekendAdjust           String    @default("none")
+
+  family            Family   @relation(fields: [familyId], references: [id])
+  account           Account? @relation("RecurringTransactionAccount", fields: [accountId], references: [id], onDelete: SetNull)
+  destinationAccount Account? @relation("RecurringTransactionDestinationAccount", fields: [destinationAccountId], references: [id], onDelete: SetNull)
+  category          Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  merchant          Merchant? @relation(fields: [merchantId], references: [id], onDelete: SetNull)
+  replacedBy        RecurringTransaction? @relation("RecurringTransactionReplacedBy", fields: [replacedById], references: [id], onDelete: SetNull)
+  replacing         RecurringTransaction[] @relation("RecurringTransactionReplacedBy")
+  recurrenceRules   RecurrenceRule[]
+  occurrences       RecurringOccurrence[]
+  matchRejections   RecurringMatchRejection[]
+  priceChanges      RecurringPriceChange[]
+
+  @@index([accountId], map: "index_recurring_transactions_on_account_id")
+  @@index([categoryId], map: "index_recurring_transactions_on_category_id")
+  @@index([destinationAccountId], map: "index_recurring_transactions_on_destination_account_id")
+  @@index([familyId, status], map: "index_recurring_transactions_on_family_id_and_status")
+  @@index([familyId], map: "index_recurring_transactions_on_family_id")
+  @@index([merchantId], map: "index_recurring_transactions_on_merchant_id")
+  @@index([nextExpectedDate], map: "index_recurring_transactions_on_next_expected_date")
+  @@map("recurring_transactions")
+}
+
+model RecurrenceRule {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt               DateTime @default(now())
+  dayOfMonth              Int?
+  frequency               RecurrenceFrequency
+  interval                Int      @default(1)
+  monthOfYear             Int?
+  position                Int      @default(0)
+  recurringTransactionId  String   @db.Uuid
+  updatedAt               DateTime @updatedAt
+  weekday                 Int?
+  weekdayOrdinal          Int?
+
+  recurringTransaction RecurringTransaction @relation(fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringTransactionId, position], map: "idx_on_recurring_transaction_id_position_62f0900d95")
+  @@map("recurrence_rules")
+}
+
+model RecurringOccurrence {
+  id                     String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  closedAt               DateTime?
+  closedSource           RecurringOccurrenceClosedSource?
+  createdAt              DateTime                    @default(now())
+  currency               String
+  dueOn                  DateTime
+  expectedAmount         Decimal?                    @db.Decimal(19, 4)
+  familyId               String                      @db.Uuid
+  notes                  String?                     @db.Text
+  originalDueOn          DateTime
+  recurringTransactionId String                      @db.Uuid
+  snoozedUntil           DateTime?
+  status                 RecurringOccurrenceStatus   @default(scheduled)
+  updatedAt              DateTime                    @updatedAt
+
+  family              Family                @relation(fields: [familyId], references: [id])
+  recurringTransaction RecurringTransaction @relation(fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+  allocations         RecurringAllocation[]
+
+  @@index([familyId, dueOn], map: "index_recurring_occurrences_on_family_id_and_due_on")
+  @@index([familyId, status, dueOn], map: "index_recurring_occurrences_on_family_id_and_status_and_due_on")
+  @@unique([recurringTransactionId, originalDueOn], map: "idx_recurring_occurrences_identity")
+  @@map("recurring_occurrences")
+}
+
+model RecurringAllocation {
+  id                     String                    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  allocatedAmount        Decimal                   @db.Decimal(19, 4)
+  createdAt              DateTime                  @default(now())
+  currency               String
+  entryId                String?                   @db.Uuid
+  matchConfidence        Decimal?                  @db.Decimal(5, 4)
+  matchSignals           Json                      @default("{}")
+  paidOn                 DateTime?
+  recurringOccurrenceId  String                    @db.Uuid
+  source                 RecurringAllocationSource
+  sourceAmount           Decimal?                  @db.Decimal(19, 4)
+  sourceCurrency         String?
+  state                  RecurringAllocationState  @default(confirmed)
+  updatedAt              DateTime                  @updatedAt
+
+  recurringOccurrence RecurringOccurrence @relation(fields: [recurringOccurrenceId], references: [id], onDelete: Cascade)
+  entry                Entry?            @relation(fields: [entryId], references: [id], onDelete: SetNull)
+
+  @@unique([recurringOccurrenceId, entryId], map: "idx_recurring_allocations_entry_once")
+  @@index([entryId], map: "index_recurring_allocations_on_entry_id")
+  @@index([recurringOccurrenceId], map: "index_recurring_allocations_on_recurring_occurrence_id")
+  @@map("recurring_allocations")
+}
+
+model RecurringMatchRejection {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt              DateTime @default(now())
+  entryId                String   @db.Uuid
+  recurringTransactionId String   @db.Uuid
+  updatedAt              DateTime @updatedAt
+
+  entry                Entry                @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  recurringTransaction RecurringTransaction @relation(fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringTransactionId, entryId], map: "idx_recurring_match_rejections_pair")
+  @@index([entryId], map: "index_recurring_match_rejections_on_entry_id")
+  @@map("recurring_match_rejections")
+}
+
+model RecurringPriceChange {
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt              DateTime @default(now())
+  currency               String
+  effectiveOn            DateTime
+  entryId                String?  @db.Uuid
+  newAmount              Decimal  @db.Decimal(19, 4)
+  previousAmount         Decimal  @db.Decimal(19, 4)
+  recurringTransactionId String   @db.Uuid
+  source                 String
+  updatedAt              DateTime @updatedAt
+
+  entry                Entry?               @relation(fields: [entryId], references: [id], onDelete: SetNull)
+  recurringTransaction RecurringTransaction @relation(fields: [recurringTransactionId], references: [id], onDelete: Cascade)
+
+  @@unique([recurringTransactionId, effectiveOn], map: "idx_recurring_price_changes_identity")
+  @@index([entryId], map: "index_recurring_price_changes_on_entry_id")
+  @@map("recurring_price_changes")
+}
+
+model Budget {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  budgetedSpending Decimal? @db.Decimal(19, 4)
+  createdAt        DateTime @default(now())
+  currency         String
+  endDate          DateTime
+  expectedIncome   Decimal? @db.Decimal(19, 4)
+  familyId         String   @db.Uuid
+  startDate        DateTime
+  updatedAt        DateTime @updatedAt
+  userId           String?  @db.Uuid
+
+  family          Family            @relation(fields: [familyId], references: [id])
+  user            User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  budgetCategories BudgetCategory[]
+
+  @@index([familyId], map: "index_budgets_on_family_id")
+  @@index([userId], map: "index_budgets_on_user_id")
+  @@map("budgets")
+}
+
+model BudgetCategory {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  budgetId         String   @db.Uuid
+  budgetedSpending Decimal  @db.Decimal(19, 4)
+  categoryId       String   @db.Uuid
+  createdAt        DateTime @default(now())
+  currency         String
+  rolledOverAmount Decimal  @default("0") @db.Decimal(19, 4)
+  rolloverEnabled  Boolean  @default(false)
+  updatedAt        DateTime @updatedAt
+
+  budget   Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  category Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([budgetId, categoryId], map: "index_budget_categories_on_budget_id_and_category_id")
+  @@index([budgetId], map: "index_budget_categories_on_budget_id")
+  @@index([categoryId], map: "index_budget_categories_on_category_id")
+  @@map("budget_categories")
+}
+
+model BudgetShare {
+  id         String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt  DateTime                @default(now())
+  ownerId    String                  @db.Uuid
+  permission AccountSharePermission  @default(read_only)
+  updatedAt  DateTime                @updatedAt
+  viewerId   String                  @db.Uuid
+
+  owner  User @relation("BudgetShareOwner", fields: [ownerId], references: [id])
+  viewer User @relation("BudgetShareViewer", fields: [viewerId], references: [id])
+
+  @@unique([ownerId, viewerId], map: "index_budget_shares_on_owner_id_and_viewer_id")
+  @@index([ownerId], map: "index_budget_shares_on_owner_id")
+  @@index([viewerId], map: "index_budget_shares_on_viewer_id")
+  @@map("budget_shares")
+}
+
+model Goal {
+  id              String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  color           String?
+  completedAmount Decimal?     @db.Decimal(19, 4)
+  completedAt     DateTime?
+  consumedAmount  Decimal      @default("0") @db.Decimal(19, 4)
+  createdAt       DateTime     @default(now())
+  currency        String
+  familyId        String       @db.Uuid
+  icon            String?
+  kind            GoalKind     @default(one_off)
+  name            String
+  notes           String?      @db.Text
+  progressBasis   GoalProgressBasis @default(balance)
+  state           GoalState    @default(active)
+  targetAmount    Decimal      @db.Decimal(19, 4)
+  targetDate      DateTime?
+  targetMode      GoalTargetMode @default(fixed)
+  targetMonths    Int?
+  updatedAt       DateTime     @updatedAt
+
+  family      Family       @relation(fields: [familyId], references: [id])
+  goalAccounts GoalAccount[]
+  goalPledges  GoalPledge[]
+
+  @@index([familyId, state], map: "index_goals_on_family_id_and_state")
+  @@index([familyId], map: "index_goals_on_family_id")
+  @@map("goals")
+}
+
+model GoalAccount {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId       String   @db.Uuid
+  allocatedAmount Decimal? @db.Decimal(19, 4)
+  createdAt       DateTime @default(now())
+  goalId          String   @db.Uuid
+  updatedAt       DateTime @updatedAt
+
+  account Account @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  goal    Goal    @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, accountId], map: "index_savings_goal_accounts_on_goal_and_account")
+  @@index([accountId], map: "index_goal_accounts_on_account_id")
+  @@index([goalId], map: "index_goal_accounts_on_goal_id")
+  @@map("goal_accounts")
+}
+
+model GoalPledge {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String          @db.Uuid
+  amount                Decimal         @db.Decimal(19, 4)
+  createdAt             DateTime        @default(now())
+  currency              String
+  expiresAt             DateTime
+  goalId                String          @db.Uuid
+  kind                  GoalPledgeKind
+  matchedTransactionId  String?         @db.Uuid
+  status                GoalPledgeStatus @default(open)
+  updatedAt             DateTime        @updatedAt
+
+  account            Account     @relation(fields: [accountId], references: [id])
+  goal               Goal        @relation(fields: [goalId], references: [id])
+  matchedTransaction Transaction? @relation(fields: [matchedTransactionId], references: [id], onDelete: SetNull)
+
+  @@unique([matchedTransactionId], map: "index_goal_pledges_on_matched_transaction_id")
+  @@index([accountId], map: "index_goal_pledges_on_account_id")
+  @@index([goalId, status], map: "index_goal_pledges_on_goal_id_and_status")
+  @@index([goalId], map: "index_goal_pledges_on_goal_id")
+  @@index([status, expiresAt], map: "index_goal_pledges_open_by_expiry")
+  @@map("goal_pledges")
+}
+
+// ---------------------------------------------------------------------------
+// Imports, exports, documents & syncs
+// ---------------------------------------------------------------------------
+
+model Import {
+  id                          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountColLabel             String?
+  accountId                   String?  @db.Uuid
+  accountStatementId          String?  @db.Uuid
+  aiSummary                   String?  @db.Text
+  amountColLabel              String?
+  amountTypeIdentifierValue   String?
+  amountTypeInflowValue       String?
+  amountTypeStrategy          String   @default("signed_amount")
+  categoryColLabel            String?
+  checksum                    String?  @db.VarChar(64)
+  clientChunkId               String?  @db.VarChar(255)
+  colSep                      String   @default(",")
+  columnMappings              Json?
+  createdAt                   DateTime @default(now())
+  currencyColLabel            String?
+  dateColLabel                String?
+  dateFormat                  String   @default("%m/%d/%Y")
+  documentType                String?
+  entityTypeColLabel          String?
+  error                       String?
+  errorDetails                Json     @default("{}")
+  exchangeOperatingMicColLabel String?
+  expectedRecordCounts        Json     @default("{}")
+  extractedData               Json?
+  familyId                    String   @db.Uuid
+  importSessionId             String?  @db.Uuid
+  nameColLabel                String?
+  normalizedCsvStr            String?
+  notesColLabel               String?
+  numberFormat                String?
+  priceColLabel               String?
+  qtyColLabel                 String?
+  rawFileStr                  String?
+  readbackVerification        Json     @default("{}")
+  rowsCount                   Int      @default(0)
+  rowsToSkip                  Int      @default(0)
+  sequence                    Int?
+  signageConvention           String   @default("inflows_positive")
+  status                      String?
+  summary                     Json     @default("{}")
+  tagsColLabel                String?
+  tickerColLabel              String?
+  type                        String
+  updatedAt                   DateTime @updatedAt
+
+  family          Family         @relation(fields: [familyId], references: [id])
+  account         Account?       @relation("ImportAccount", fields: [accountId], references: [id], onDelete: SetNull)
+  accountStatement AccountStatement? @relation(fields: [accountStatementId], references: [id], onDelete: SetNull)
+  importSession   ImportSession? @relation(fields: [importSessionId], references: [id], onDelete: SetNull)
+  accounts        Account[]      @relation("AccountImport")
+  entries         Entry[]
+  importRows      ImportRow[]
+  importMappings  ImportMapping[]
+
+  @@unique([importSessionId, clientChunkId], map: "idx_imports_on_session_client_chunk")
+  @@unique([importSessionId, sequence], map: "idx_imports_on_session_sequence")
+  @@index([accountStatementId], map: "index_imports_on_account_statement_id")
+  @@index([familyId], map: "index_imports_on_family_id")
+  @@index([importSessionId], map: "index_imports_on_import_session_id")
+  @@map("imports")
+}
+
+model ImportRow {
+  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  account              String?
+  actions              String?  @db.Text
+  active               Boolean?
+  amount               String?
+  category             String?
+  categoryClassification String?
+  categoryColor        String?
+  categoryIcon         String?
+  categoryParent       String?
+  conditions           String?  @db.Text
+  createdAt            DateTime @default(now())
+  currency             String?
+  date                 String?
+  effectiveDate        String?
+  entityType           String?
+  exchangeOperatingMic String?
+  importId             String   @db.Uuid
+  merchantColor        String?
+  merchantWebsite      String?
+  name                 String?
+  notes                String?  @db.Text
+  price                String?
+  qty                  String?
+  resourceType         String?
+  sourceRowNumber      Int
+  tags                 String?
+  ticker               String?
+  updatedAt            DateTime @updatedAt
+
+  import Import @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@unique([importId, sourceRowNumber], map: "index_import_rows_on_import_id_and_source_row_number")
+  @@index([importId], map: "index_import_rows_on_import_id")
+  @@map("import_rows")
+}
+
+model ImportMapping {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createWhenEmpty  Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  importId         String   @db.Uuid
+  key              String?
+  mappableId       String?  @db.Uuid
+  mappableType     String?
+  type             String
+  updatedAt        DateTime @updatedAt
+  value            String?
+
+  import Import @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId], map: "index_import_mappings_on_import_id")
+  @@index([mappableType, mappableId], map: "index_import_mappings_on_mappable")
+  @@map("import_mappings")
+}
+
+model ImportSession {
+  id               String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientSessionId  String?            @db.VarChar(255)
+  createdAt        DateTime           @default(now())
+  errorDetails     Json               @default("{}")
+  expectedChunks   Int?
+  familyId         String             @db.Uuid
+  importType       String             @default("SureImport")
+  status           ImportSessionStatus @default(pending)
+  summary          Json               @default("{}")
+  updatedAt        DateTime           @updatedAt
+
+  family                Family                @relation(fields: [familyId], references: [id])
+  imports               Import[]
+  importSourceMappings  ImportSourceMapping[]
+
+  @@unique([familyId, clientSessionId], map: "idx_import_sessions_on_family_client_session")
+  @@index([familyId, status], map: "index_import_sessions_on_family_id_and_status")
+  @@index([familyId], map: "index_import_sessions_on_family_id")
+  @@map("import_sessions")
+}
+
+model ImportSourceMapping {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt       DateTime @default(now())
+  familyId        String   @db.Uuid
+  importSessionId String   @db.Uuid
+  sourceId        String   @db.VarChar(255)
+  sourceType      String   @db.VarChar(64)
+  targetId        String   @db.Uuid
+  targetType      String
+  updatedAt       DateTime @updatedAt
+
+  family        Family        @relation(fields: [familyId], references: [id])
+  importSession ImportSession @relation(fields: [importSessionId], references: [id], onDelete: Cascade)
+
+  @@index([familyId, sourceType, sourceId], map: "idx_import_source_mappings_on_family_source")
+  @@index([familyId], map: "index_import_source_mappings_on_family_id")
+  @@unique([importSessionId, sourceType, sourceId], map: "index_import_source_mappings_on_session_type_and_source")
+  @@index([importSessionId], map: "index_import_source_mappings_on_import_session_id")
+  @@index([targetType, targetId], map: "idx_import_source_mappings_on_target")
+  @@map("import_source_mappings")
+}
+
+model FamilyExport {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now())
+  familyId  String   @db.Uuid
+  status    String   @default("pending")
+  updatedAt DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@index([familyId], map: "index_family_exports_on_family_id")
+  @@map("family_exports")
+}
+
+model ArchivedExport {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt           DateTime @default(now())
+  downloadTokenDigest String
+  email               String
+  expiresAt           DateTime
+  familyName          String?
+  updatedAt           DateTime @updatedAt
+
+  @@unique([downloadTokenDigest], map: "index_archived_exports_on_download_token_digest")
+  @@index([expiresAt], map: "index_archived_exports_on_expires_at")
+  @@map("archived_exports")
+}
+
+model FamilyDocument {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contentType     String?
+  createdAt       DateTime @default(now())
+  familyId        String   @db.Uuid
+  fileSize        Int?
+  filename        String
+  metadata        Json?    @default("{}")
+  providerFileId  String?
+  status          String   @default("pending")
+  updatedAt       DateTime @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@index([familyId], map: "index_family_documents_on_family_id")
+  @@index([providerFileId], map: "index_family_documents_on_provider_file_id")
+  @@index([status], map: "index_family_documents_on_status")
+  @@map("family_documents")
+}
+
+model Sync {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cancelRequestedAt DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime @default(now())
+  data             Json?
+  error            String?
+  failedAt         DateTime?
+  parentId         String?  @db.Uuid
+  pendingAt        DateTime?
+  status           String   @default("pending")
+  syncStats        String?  @db.Text
+  syncableId       String   @db.Uuid
+  syncableType     String
+  syncingAt        DateTime?
+  updatedAt        DateTime @updatedAt
+  windowEndDate    DateTime?
+  windowStartDate  DateTime?
+
+  parent Sync?   @relation("SyncParent", fields: [parentId], references: [id], onDelete: Cascade)
+  children Sync[] @relation("SyncParent")
+
+  @@index([parentId], map: "index_syncs_on_parent_id")
+  @@index([status], map: "index_syncs_on_status")
+  @@index([syncableType, syncableId, createdAt(sort: Desc), id(sort: Desc)], map: "index_syncs_on_syncable_and_created_at_and_id")
+  @@index([syncableType, syncableId], map: "index_syncs_on_syncable")
+  @@map("syncs")
+}
+
+// ---------------------------------------------------------------------------
+// AI assistant & observability (G6)
+// ---------------------------------------------------------------------------
+
+model Chat {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt                 DateTime @default(now())
+  error                     Json?
+  instructions              String?
+  latestAssistantResponseId String?
+  title                     String   @default("")
+  updatedAt                 DateTime @updatedAt
+  userId                    String   @db.Uuid
+
+  user             User   @relation(fields: [userId], references: [id])
+  lastViewedBy     User[] @relation("UserLastViewedChat")
+  messages         Message[]
+
+  @@index([userId], map: "index_chats_on_user_id")
+  @@map("chats")
+}
+
+model Message {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  aiModel    String?
+  chatId     String   @db.Uuid
+  content    String?  @db.Text
+  debug      Boolean  @default(false)
+  providerId String?
+  reasoning  Boolean  @default(false)
+  status     String   @default("complete")
+  type       String
+  updatedAt  DateTime @updatedAt
+
+  chat      Chat        @relation(fields: [chatId], references: [id])
+  toolCalls ToolCall[]
+
+  @@index([chatId], map: "index_messages_on_chat_id")
+  @@map("messages")
+}
+
+model ToolCall {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  functionArguments Json?
+  functionName      String?
+  functionResult    Json?
+  messageId         String   @db.Uuid
+  providerCallId    String?
+  providerId        String   @default("")
+  type              String
+  updatedAt         DateTime @updatedAt
+
+  message Message @relation(fields: [messageId], references: [id])
+
+  @@index([messageId], map: "index_tool_calls_on_message_id")
+  @@map("tool_calls")
+}
+
+model LlmUsage {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cacheCreationTokens Int?
+  cacheReadTokens     Int?
+  completionTokens    Int       @default(0)
+  createdAt           DateTime  @default(now())
+  estimatedCost       Decimal?  @db.Decimal(10, 6)
+  familyId            String    @db.Uuid
+  metadata            Json      @default("{}")
+  model               String    @default("")
+  operation           String    @default("")
+  promptTokens        Int       @default(0)
+  provider            String    @default("")
+  totalTokens         Int       @default(0)
+  updatedAt           DateTime  @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@index([familyId, createdAt], map: "index_llm_usages_on_family_id_and_created_at")
+  @@index([familyId, operation], map: "index_llm_usages_on_family_id_and_operation")
+  @@index([familyId], map: "index_llm_usages_on_family_id")
+  @@map("llm_usages")
+}
+
+model Insight {
+  id           String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  body         String         @db.Text
+  currency     String         @default("USD")
+  dedupKey     String         @default("")
+  dismissedAt  DateTime?
+  facts        Json           @default("{}")
+  familyId     String         @db.Uuid
+  generatedAt  DateTime       @default(now())
+  insightType  String         @default("")
+  metadata     Json           @default("{}")
+  periodEnd    DateTime?
+  periodStart  DateTime?
+  priority     InsightPriority @default(medium)
+  readAt       DateTime?
+  status       InsightStatus  @default(active)
+  title        String         @default("")
+  updatedAt    DateTime       @updatedAt
+
+  family Family @relation(fields: [familyId], references: [id])
+
+  @@unique([familyId, dedupKey], map: "index_insights_on_family_id_and_dedup_key")
+  @@index([familyId, generatedAt], map: "index_insights_on_family_id_and_generated_at")
+  @@index([familyId, status], map: "index_insights_on_family_id_and_status")
+  @@map("insights")
+}
+
+model DataEnrichment {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  attributeName String?
+  createdAt     DateTime @default(now())
+  enrichableId  String   @db.Uuid
+  enrichableType String
+  metadata      Json?
+  source        String?
+  updatedAt     DateTime @updatedAt
+  value         Json?
+
+  @@unique([enrichableId, enrichableType, source, attributeName], map: "idx_on_enrichable_id_enrichable_type_source_attribu_5be5f63e08")
+  @@index([enrichableType, enrichableId], map: "index_data_enrichments_on_enrichable")
+  @@map("data_enrichments")
+}
+
+model DebugLogEntry {
+  id               String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId        String?       @db.Uuid
+  accountProviderId String?      @db.Uuid
+  category         String        @default("")
+  createdAt        DateTime      @default(now())
+  familyId         String?       @db.Uuid
+  level            DebugLogLevel
+  message          String        @db.Text
+  metadata         Json          @default("{}")
+  providerKey      String?
+  source           String        @default("")
+  updatedAt        DateTime      @updatedAt
+  userId           String?       @db.Uuid
+
+  @@index([accountId], map: "index_debug_log_entries_on_account_id")
+  @@index([accountProviderId], map: "index_debug_log_entries_on_account_provider_id")
+  @@index([category, createdAt], map: "index_debug_log_entries_on_category_and_created_at")
+  @@index([category], map: "index_debug_log_entries_on_category")
+  @@index([createdAt], map: "index_debug_log_entries_on_created_at")
+  @@index([familyId], map: "index_debug_log_entries_on_family_id")
+  @@index([level], map: "index_debug_log_entries_on_level")
+  @@index([providerKey, createdAt], map: "index_debug_log_entries_on_provider_key_and_created_at")
+  @@index([providerKey], map: "index_debug_log_entries_on_provider_key")
+  @@index([source], map: "index_debug_log_entries_on_source")
+  @@index([userId], map: "index_debug_log_entries_on_user_id")
+  @@map("debug_log_entries")
+}
+
+model ProviderRequestCount {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  count       Int      @default(0)
+  createdAt   DateTime @default(now())
+  period      String   @default("")
+  providerKey String   @default("")
+  updatedAt   DateTime @updatedAt
+
+  @@unique([providerKey, period], map: "index_provider_request_counts_on_provider_key_and_period")
+  @@map("provider_request_counts")
+}
+
+model EvalDataset {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  description String?
+  evalType    String   @default("")
+  metadata    Json     @default("{}")
+  name        String   @default("")
+  sampleCount Int      @default(0)
+  updatedAt   DateTime @updatedAt
+  version     String   @default("1.0")
+
+  evalRuns    EvalRun[]
+  evalSamples EvalSample[]
+
+  @@index([evalType, active], map: "index_eval_datasets_on_eval_type_and_active")
+  @@unique([name], map: "index_eval_datasets_on_name")
+  @@map("eval_datasets")
+}
+
+model EvalRun {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  completedAt           DateTime?
+  createdAt             DateTime @default(now())
+  errorMessage          String?  @db.Text
+  evalDatasetId         String   @db.Uuid
+  metrics               Json     @default("{}")
+  model                 String   @default("")
+  name                  String?
+  provider              String   @default("")
+  providerConfig        Json     @default("{}")
+  startedAt             DateTime?
+  status                String   @default("pending")
+  totalCompletionTokens Int      @default(0)
+  totalCost             Decimal? @db.Decimal(10, 6)
+  totalPromptTokens     Int      @default(0)
+  updatedAt             DateTime @updatedAt
+
+  dataset EvalDataset @relation(fields: [evalDatasetId], references: [id])
+  results EvalResult[]
+
+  @@index([evalDatasetId, model], map: "index_eval_runs_on_eval_dataset_id_and_model")
+  @@index([evalDatasetId], map: "index_eval_runs_on_eval_dataset_id")
+  @@index([provider, model], map: "index_eval_runs_on_provider_and_model")
+  @@index([status], map: "index_eval_runs_on_status")
+  @@map("eval_runs")
+}
+
+model EvalSample {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contextData   Json     @default("{}")
+  createdAt     DateTime @default(now())
+  difficulty    String   @default("medium")
+  evalDatasetId String   @db.Uuid
+  expectedOutput Json
+  inputData     Json
+  metadata      Json     @default("{}")
+  tags          String[] @default([])
+  updatedAt     DateTime @updatedAt
+
+  dataset EvalDataset @relation(fields: [evalDatasetId], references: [id])
+  results EvalResult[]
+
+  @@index([evalDatasetId, difficulty], map: "index_eval_samples_on_eval_dataset_id_and_difficulty")
+  @@index([evalDatasetId], map: "index_eval_samples_on_eval_dataset_id")
+  @@index([tags], map: "index_eval_samples_on_tags", type: Gin)
+  @@map("eval_samples")
+}
+
+model EvalResult {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  actualOutput      Json
+  alternativeMatch  Boolean  @default(false)
+  completionTokens  Int?
+  correct           Boolean
+  cost              Decimal? @db.Decimal(10, 6)
+  createdAt         DateTime @default(now())
+  evalRunId         String   @db.Uuid
+  evalSampleId      String   @db.Uuid
+  exactMatch        Boolean  @default(false)
+  fuzzyScore        Float?
+  hierarchicalMatch Boolean  @default(false)
+  latencyMs         Int?
+  metadata          Json     @default("{}")
+  nullExpected      Boolean  @default(false)
+  nullReturned      Boolean  @default(false)
+  promptTokens      Int?
+  updatedAt         DateTime @updatedAt
+
+  run    EvalRun     @relation(fields: [evalRunId], references: [id])
+  sample EvalSample  @relation(fields: [evalSampleId], references: [id])
+
+  @@index([evalRunId, correct], map: "index_eval_results_on_eval_run_id_and_correct")
+  @@index([evalRunId], map: "index_eval_results_on_eval_run_id")
+  @@index([evalSampleId], map: "index_eval_results_on_eval_sample_id")
+  @@map("eval_results")
+}
+
+model SsoProvider {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId     String?
+  clientSecret String?
+  createdAt    DateTime @default(now())
+  enabled      Boolean  @default(true)
+  icon         String?
+  issuer       String?
+  label        String   @default("")
+  name         String   @default("")
+  redirectUri  String?
+  settings     Json     @default("{}")
+  strategy     String   @default("")
+  updatedAt    DateTime @updatedAt
+
+  @@index([enabled], map: "index_sso_providers_on_enabled")
+  @@unique([name], map: "index_sso_providers_on_name")
+  @@map("sso_providers")
+}
+
+model SsoAuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt DateTime @default(now())
+  eventType String   @default("")
+  ipAddress String?
+  metadata  Json     @default("{}")
+  provider  String?
+  updatedAt DateTime @updatedAt
+  userAgent String?
+  userId    String?  @db.Uuid
+
+  @@index([createdAt], map: "index_sso_audit_logs_on_created_at")
+  @@index([eventType], map: "index_sso_audit_logs_on_event_type")
+  @@index([userId, createdAt], map: "index_sso_audit_logs_on_user_id_and_created_at")
+  @@index([userId], map: "index_sso_audit_logs_on_user_id")
+  @@map("sso_audit_logs")
+}
+
+model SsoIdentityBlock {
+  id            String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt     DateTime @default(now())
+  identityLabel String  @db.Text
+  provider      String  @default("")
+  uidDigest     String  @default("")
+  updatedAt     DateTime @updatedAt
+
+  @@unique([provider, uidDigest], map: "index_sso_identity_blocks_on_provider_and_uid_digest")
+  @@map("sso_identity_blocks")
+}
+
+// ---------------------------------------------------------------------------
+// Document storage (ActiveStorage)
+// ---------------------------------------------------------------------------
+
+model ActiveStorageBlob {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  byteSize    BigInt
+  checksum    String?
+  contentType String?
+  createdAt   DateTime @default(now())
+  filename    String   @default("")
+  key         String   @default("")
+  metadata    String?  @db.Text
+  serviceName String   @default("")
+
+  attachments   ActiveStorageAttachment[]
+  variantRecords ActiveStorageVariantRecord[]
+
+  @@unique([key], map: "index_active_storage_blobs_on_key")
+  @@map("active_storage_blobs")
+}
+
+model ActiveStorageAttachment {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blobId     String   @db.Uuid
+  createdAt  DateTime @default(now())
+  name       String   @default("")
+  recordId   String   @db.Uuid
+  recordType String   @default("")
+
+  blob ActiveStorageBlob @relation(fields: [blobId], references: [id])
+
+  @@index([blobId], map: "index_active_storage_attachments_on_blob_id")
+  @@unique([recordType, recordId, name, blobId], map: "index_active_storage_attachments_uniqueness")
+  @@map("active_storage_attachments")
+}
+
+model ActiveStorageVariantRecord {
+  id              String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  blobId          String   @db.Uuid
+  variationDigest String   @default("")
+
+  blob ActiveStorageBlob @relation(fields: [blobId], references: [id])
+
+  @@unique([blobId, variationDigest], map: "index_active_storage_variant_records_uniqueness")
+  @@map("active_storage_variant_records")
+}
+
+model VectorStoreChunk {
+  id          String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chunkIndex  Int                           @default(0)
+  content     String                        @db.Text
+  createdAt   DateTime                      @default(now())
+  embedding   Unsupported("vector(1024)")
+  fileId      String                        @default("")
+  filename    String?
+  metadata    Json                          @default("{}")
+  storeId     String                        @default("")
+  updatedAt   DateTime                      @updatedAt
+
+  @@index([storeId], map: "index_vector_store_chunks_on_store_id")
+  @@index([fileId], map: "index_vector_store_chunks_on_file_id")
+  @@unique([storeId, fileId, chunkIndex], map: "index_vector_store_chunks_on_store_file_chunk")
+  @@map("vector_store_chunks")
+}
+
+// ---------------------------------------------------------------------------
+// Bank-sync provider tables (G5): scalar FK fields only, no Prisma relations
+// ---------------------------------------------------------------------------
+
+model AkahuItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  appToken          String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+  userToken         String?  @db.Text
+
+  @@index([familyId], map: "index_akahu_items_on_family_id")
+  @@index([status], map: "index_akahu_items_on_status")
+  @@map("akahu_items")
+}
+
+model AkahuAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountStatus         String?
+  accountType           String?
+  akahuItemId           String   @db.Uuid
+  availableBalance      Decimal? @db.Decimal(19, 4)
+  balanceLimit          Decimal? @db.Decimal(19, 4)
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  formattedAccount      String?
+  institutionMetadata   Json?
+  name                  String?
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  syncStartDate         DateTime?
+
+  @@index([accountId], map: "index_akahu_accounts_on_account_id")
+  @@unique([akahuItemId, accountId], map: "index_akahu_accounts_on_item_and_account_id")
+  @@index([akahuItemId], map: "index_akahu_accounts_on_akahu_item_id")
+  @@map("akahu_accounts")
+}
+
+model BinanceItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String?  @db.Text
+  apiSecret         String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_binance_items_on_family_id")
+  @@index([status], map: "index_binance_items_on_status")
+  @@map("binance_items")
+}
+
+model BinanceAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountType           String?
+  binanceItemId         String   @db.Uuid
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  extra                 Json     @default("{}")
+  institutionMetadata   Json?
+  name                  String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  updatedAt             DateTime @updatedAt
+
+  @@index([accountType], map: "index_binance_accounts_on_account_type")
+  @@unique([binanceItemId, accountType], map: "index_binance_accounts_on_item_and_type")
+  @@index([binanceItemId], map: "index_binance_accounts_on_binance_item_id")
+  @@map("binance_accounts")
+}
+
+model BrexItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  baseUrl           String?
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  token             String?  @db.Text
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_brex_items_on_family_id")
+  @@index([status], map: "index_brex_items_on_status")
+  @@map("brex_items")
+}
+
+model BrexAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String
+  accountKind           String   @default("cash")
+  accountLimit          Decimal? @db.Decimal(19, 4)
+  accountStatus         String?
+  accountType           String?
+  availableBalance      Decimal? @db.Decimal(19, 4)
+  brexItemId            String   @db.Uuid
+  currency              String   @default("USD")
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  institutionMetadata   Json?
+  name                  String?
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+
+  @@unique([brexItemId, accountId], map: "index_brex_accounts_on_item_and_account_id")
+  @@index([brexItemId], map: "index_brex_accounts_on_brex_item_id")
+  @@map("brex_accounts")
+}
+
+model CoinbaseItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String?  @db.Text
+  apiSecret         String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_coinbase_items_on_family_id")
+  @@index([status], map: "index_coinbase_items_on_status")
+  @@map("coinbase_items")
+}
+
+model CoinbaseAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountStatus         String?
+  accountType           String?
+  coinbaseItemId        String   @db.Uuid
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(34, 18)
+  institutionMetadata   Json?
+  name                  String?
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+
+  @@index([accountId], map: "index_coinbase_accounts_on_account_id")
+  @@unique([coinbaseItemId, accountId], map: "index_coinbase_accounts_on_item_and_account_id")
+  @@index([coinbaseItemId], map: "index_coinbase_accounts_on_coinbase_item_id")
+  @@map("coinbase_accounts")
+}
+
+model CoinstatsItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String
+  createdAt         DateTime @default(now())
+  exchangeConnectionId String?
+  exchangePortfolioId String?
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([exchangeConnectionId], map: "index_coinstats_items_on_exchange_connection_id")
+  @@unique([familyId, exchangePortfolioId], map: "index_coinstats_items_on_family_id_and_exchange_portfolio_id")
+  @@index([familyId], map: "index_coinstats_items_on_family_id")
+  @@index([status], map: "index_coinstats_items_on_status")
+  @@map("coinstats_items")
+}
+
+model CoinstatsAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountStatus         String?
+  accountType           String?
+  coinstatsItemId       String   @db.Uuid
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  institutionMetadata   Json?
+  name                  String?
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  walletAddress         String?
+
+  @@unique([coinstatsItemId, accountId, walletAddress], map: "index_coinstats_accounts_on_item_account_and_wallet")
+  @@index([coinstatsItemId], map: "index_coinstats_accounts_on_coinstats_item_id")
+  @@map("coinstats_accounts")
+}
+
+model EnableBankingItem {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  applicationId             String?
+  aspspAuthApproach         String?
+  aspspId                   String?
+  aspspMaximumConsentValidity Int?
+  aspspName                 String?
+  aspspPsuTypes             Json[]   @default([])
+  aspspRequiredPsuHeaders   Json[]   @default([])
+  authorizationId           String?
+  clientCertificate         String?  @db.Text
+  countryCode               String?
+  createdAt                 DateTime @default(now())
+  familyId                  String   @db.Uuid
+  institutionColor          String?
+  institutionDomain         String?
+  institutionId             String?
+  institutionName           String?
+  institutionUrl            String?
+  lastPsuIp                 String?
+  name                      String?
+  pendingAccountSetup       Boolean  @default(false)
+  psuType                   String?
+  rawInstitutionPayload     Json?
+  rawPayload                Json?
+  scheduledForDeletion      Boolean  @default(false)
+  sessionExpiresAt          DateTime?
+  sessionId                 String?
+  status                    String   @default("good")
+  syncStartDate             DateTime?
+  updatedAt                 DateTime @updatedAt
+
+  @@index([familyId], map: "index_enable_banking_items_on_family_id")
+  @@index([status], map: "index_enable_banking_items_on_status")
+  @@map("enable_banking_items")
+}
+
+model EnableBankingAccount {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId                 String?
+  accountStatus             String?
+  accountType               String?
+  creditLimit               Decimal? @db.Decimal(19, 4)
+  currency                  String?
+  currentBalance            Decimal? @db.Decimal(19, 4)
+  enableBankingItemId       String   @db.Uuid
+  iban                      String?
+  identificationHashes      Json[]   @default([])
+  institutionMetadata       Json?
+  name                      String?
+  product                   String?
+  provider                  String?
+  rawPayload                Json?
+  rawTransactionsPayload    Json?
+  treatBalanceAsAvailableCredit Boolean @default(false)
+  uid                       String?
+
+  @@index([accountId], map: "index_enable_banking_accounts_on_account_id")
+  @@index([enableBankingItemId], map: "index_enable_banking_accounts_on_enable_banking_item_id")
+  @@index([identificationHashes], map: "index_enable_banking_accounts_on_identification_hashes", type: Gin)
+  @@map("enable_banking_accounts")
+}
+
+model IbkrItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  queryId           String?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  token             String?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_ibkr_items_on_family_id")
+  @@index([status], map: "index_ibkr_items_on_status")
+  @@map("ibkr_items")
+}
+
+model IbkrAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  cashBalance           Decimal? @db.Decimal(19, 4)
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  ibkrAccountId         String?
+  ibkrItemId            String   @db.Uuid
+  institutionMetadata   Json?
+  lastActivitiesSync    DateTime?
+  lastHoldingsSync      DateTime?
+  name                  String?
+  rawActivitiesPayload  Json     @default("{}")
+  rawCashReportPayload  Json[]   @default([])
+  rawEquitySummaryPayload Json[] @default([])
+  rawHoldingsPayload    Json[]   @default([])
+  reportDate            DateTime?
+  updatedAt             DateTime @updatedAt
+
+  @@unique([ibkrItemId, ibkrAccountId], map: "index_ibkr_accounts_on_item_and_ibkr_account_id")
+  @@index([ibkrItemId], map: "index_ibkr_accounts_on_ibkr_item_id")
+  @@map("ibkr_accounts")
+}
+
+model IndexaCapitalItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiToken          String?  @db.Text
+  document          String?
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  password          String?  @db.Text
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+  username          String?
+
+  @@index([familyId], map: "index_indexa_capital_items_on_family_id")
+  @@index([status], map: "index_indexa_capital_items_on_status")
+  @@map("indexa_capital_items")
+}
+
+model IndexaCapitalAccount {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountNumber             String?
+  accountStatus             String?
+  accountType               String?
+  activitiesFetchPending    Boolean  @default(false)
+  cashBalance               Decimal? @db.Decimal(19, 4)
+  currency                  String?
+  currentBalance            Decimal? @db.Decimal(19, 4)
+  indexaCapitalAccountId    String?
+  indexaCapitalAuthorizationId String?
+  indexaCapitalItemId       String   @db.Uuid
+  institutionMetadata       Json?
+  lastActivitiesSync        DateTime?
+  lastHoldingsSync          DateTime?
+  name                      String?
+  provider                  String?
+  rawActivitiesPayload      Json[]   @default([])
+  rawHoldingsPayload        Json[]   @default([])
+  rawPayload                Json?
+  syncStartDate             DateTime?
+  updatedAt                 DateTime @updatedAt
+
+  @@index([indexaCapitalAuthorizationId], map: "idx_on_indexa_capital_authorization_id_58db208d52")
+  @@unique([indexaCapitalItemId, indexaCapitalAccountId], map: "index_indexa_capital_accounts_on_item_and_account_id")
+  @@index([indexaCapitalItemId], map: "index_indexa_capital_accounts_on_indexa_capital_item_id")
+  @@map("indexa_capital_accounts")
+}
+
+model KrakenItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String?  @db.Text
+  apiSecret         String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionName   String?
+  institutionUrl    String?
+  lastNonce         BigInt   @default(0)
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_kraken_items_on_family_id")
+  @@index([status], map: "index_kraken_items_on_status")
+  @@map("kraken_items")
+}
+
+model KrakenAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String
+  accountType           String?
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  extra                 Json     @default("{}")
+  institutionMetadata   Json?
+  krakenItemId          String   @db.Uuid
+  name                  String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  updatedAt             DateTime @updatedAt
+
+  @@index([accountType], map: "index_kraken_accounts_on_account_type")
+  @@unique([krakenItemId, accountId], map: "index_kraken_accounts_on_item_and_account_id")
+  @@index([krakenItemId], map: "index_kraken_accounts_on_kraken_item_id")
+  @@map("kraken_accounts")
+}
+
+model LunchflowItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String?  @db.Text
+  baseUrl           String?
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_lunchflow_items_on_family_id")
+  @@index([status], map: "index_lunchflow_items_on_status")
+  @@map("lunchflow_items")
+}
+
+model LunchflowAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountStatus         String?
+  accountType           String?
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  holdingsSupported     Boolean  @default(true)
+  institutionMetadata   Json?
+  lunchflowItemId       String   @db.Uuid
+  name                  String?
+  provider              String?
+  rawHoldingsPayload    Json?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+
+  @@index([accountId], map: "index_lunchflow_accounts_on_account_id")
+  @@unique([lunchflowItemId, accountId], map: "index_lunchflow_accounts_on_item_and_account_id")
+  @@index([lunchflowItemId], map: "index_lunchflow_accounts_on_lunchflow_item_id")
+  @@map("lunchflow_accounts")
+}
+
+model MercuryItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  baseUrl           String?
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  token             String?  @db.Text
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_mercury_items_on_family_id")
+  @@index([status], map: "index_mercury_items_on_status")
+  @@map("mercury_items")
+}
+
+model MercuryAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String
+  accountStatus         String?
+  accountType           String?
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  institutionMetadata   Json?
+  mercuryItemId         String   @db.Uuid
+  name                  String?
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+
+  @@unique([mercuryItemId, accountId], map: "index_mercury_accounts_on_item_and_account_id")
+  @@index([mercuryItemId], map: "index_mercury_accounts_on_mercury_item_id")
+  @@map("mercury_accounts")
+}
+
+model MonobankItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessToken       String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_monobank_items_on_family_id")
+  @@index([status], map: "index_monobank_items_on_status")
+  @@map("monobank_items")
+}
+
+model MonobankAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountKind           String?
+  accountStatus         String?
+  accountType           String?
+  creditLimit           Decimal? @db.Decimal(19, 4)
+  currency              String
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  historySyncedFrom     DateTime?
+  iban                  String?
+  ignored               Boolean  @default(false)
+  institutionMetadata   Json?
+  maskedPan             String?
+  monobankItemId        String   @db.Uuid
+  name                  String
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  statementSyncedThrough DateTime?
+  syncStartDate         DateTime?
+  updatedAt             DateTime @updatedAt
+
+  @@index([accountId], map: "index_monobank_accounts_on_account_id")
+  @@unique([monobankItemId, accountId], map: "index_monobank_accounts_on_item_and_account_id")
+  @@index([monobankItemId], map: "index_monobank_accounts_on_monobank_item_id")
+  @@map("monobank_accounts")
+}
+
+model OnchainWalletItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now())
+  etherscanApiKey   String?  @db.Text
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_onchain_wallet_items_on_family_id")
+  @@index([status], map: "index_onchain_wallet_items_on_status")
+  @@map("onchain_wallet_items")
+}
+
+model OnchainWalletAccount {
+  id                    String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  assetKind             OnchainAssetKind
+  chain                 String
+  contentHash           String?
+  contractAddress       String?
+  currency              String
+  currentBalance        Decimal?        @db.Decimal(19, 4)
+  decimals              Int             @default(0)
+  extra                 Json            @default("{}")
+  name                  String?
+  onchainWalletItemId   String          @db.Uuid
+  quantity              Decimal         @default("0") @db.Decimal(32, 18)
+  rawMovementsPayload   Json?
+  rawPayload            Json?
+  symbol                String
+  updatedAt             DateTime        @updatedAt
+  walletAddress         String
+
+  @@index([onchainWalletItemId, chain, walletAddress], map: "index_onchain_wallet_accounts_on_item_and_address")
+  @@index([onchainWalletItemId], map: "index_onchain_wallet_accounts_on_onchain_wallet_item_id")
+  @@map("onchain_wallet_accounts")
+}
+
+model PlaidItem {
+  id                      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessToken             String?
+  availableProducts       String[] @default([])
+  billedProducts          String[] @default([])
+  createdAt               DateTime @default(now())
+  familyId                String   @db.Uuid
+  institutionColor        String?
+  institutionId           String?
+  institutionUrl          String?
+  name                    String?
+  nextCursor              String?
+  plaidId                 String
+  plaidRegion             String   @default("us")
+  rawInstitutionPayload   Json     @default("{}")
+  rawPayload              Json     @default("{}")
+  scheduledForDeletion    Boolean  @default(false)
+  status                  String   @default("good")
+  updatedAt               DateTime @updatedAt
+
+  @@index([familyId], map: "index_plaid_items_on_family_id")
+  @@unique([plaidId], map: "index_plaid_items_on_plaid_id")
+  @@map("plaid_items")
+}
+
+model PlaidAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  availableBalance      Decimal? @db.Decimal(19, 4)
+  currency              String   @default("")
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  mask                  String?
+  name                  String
+  plaidId               String
+  plaidItemId           String   @db.Uuid
+  plaidSubtype          String?
+  plaidType             String
+  rawHoldingsPayload    Json     @default("{}")
+  rawLiabilitiesPayload Json     @default("{}")
+  rawPayload            Json     @default("{}")
+  rawTransactionsPayload Json    @default("{}")
+  updatedAt             DateTime @updatedAt
+
+  @@unique([plaidItemId, plaidId], map: "index_plaid_accounts_on_item_and_plaid_id")
+  @@index([plaidItemId], map: "index_plaid_accounts_on_plaid_item_id")
+  @@map("plaid_accounts")
+}
+
+model QuestradeItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiServer         String?
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  refreshToken      String?  @db.Text
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_questrade_items_on_family_id")
+  @@index([status], map: "index_questrade_items_on_status")
+  @@map("questrade_items")
+}
+
+model QuestradeAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountNumber         String?
+  accountStatus         String?
+  accountType           String?
+  activitiesFetchPending Boolean @default(false)
+  cashBalance           Decimal? @db.Decimal(19, 4)
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  institutionMetadata   Json?
+  lastActivitiesSync    DateTime?
+  lastHoldingsSync      DateTime?
+  name                  String?
+  provider              String?
+  questradeAccountId    String?
+  questradeAuthorizationId String?
+  questradeItemId       String   @db.Uuid
+  rawActivitiesPayload  Json[]   @default([])
+  rawBalancesPayload    Json?
+  rawHoldingsPayload    Json[]   @default([])
+  rawPayload            Json?
+  syncStartDate         DateTime?
+  updatedAt             DateTime @updatedAt
+
+  @@index([questradeAuthorizationId], map: "index_questrade_accounts_on_questrade_authorization_id")
+  @@unique([questradeItemId, questradeAccountId], map: "idx_on_questrade_item_id_questrade_account_id_c3e6274342")
+  @@index([questradeItemId], map: "index_questrade_accounts_on_questrade_item_id")
+  @@map("questrade_accounts")
+}
+
+model RedbarkItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String   @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_redbark_items_on_family_id")
+  @@index([status], map: "index_redbark_items_on_status")
+  @@map("redbark_items")
+}
+
+model RedbarkAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountNumber         String?
+  accountStatus         String?
+  accountType           String?
+  connectionId          String?
+  currency              String
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  ignored               Boolean  @default(false)
+  institutionMetadata   Json?
+  name                  String
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  redbarkAccountId      String
+  redbarkItemId         String   @db.Uuid
+  syncStartDate         DateTime?
+  updatedAt             DateTime @updatedAt
+
+  @@unique([redbarkItemId, redbarkAccountId], map: "index_redbark_accounts_on_item_and_account_id")
+  @@index([redbarkItemId], map: "index_redbark_accounts_on_redbark_item_id")
+  @@map("redbark_accounts")
+}
+
+model SimplefinItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessUrl         String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_simplefin_items_on_family_id")
+  @@index([institutionDomain], map: "index_simplefin_items_on_institution_domain")
+  @@index([institutionId], map: "index_simplefin_items_on_institution_id")
+  @@index([institutionName], map: "index_simplefin_items_on_institution_name")
+  @@index([status], map: "index_simplefin_items_on_status")
+  @@map("simplefin_items")
+}
+
+model SimplefinAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountSubtype        String?
+  accountType           String?
+  availableBalance      Decimal? @db.Decimal(19, 4)
+  balanceDate           DateTime?
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  extra                 Json?
+  name                  String?
+  orgData               Json?
+  rawHoldingsPayload    Json?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  simplefinItemId       String   @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  @@index([accountId], map: "index_simplefin_accounts_on_account_id")
+  @@unique([simplefinItemId, accountId], map: "idx_unique_sfa_per_item_and_upstream")
+  @@index([simplefinItemId], map: "index_simplefin_accounts_on_simplefin_item_id")
+  @@map("simplefin_accounts")
+}
+
+model SnaptradeItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  clientId          String?
+  consumerKey       String?
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  lastSyncedAt      DateTime?
+  name              String?
+  oauthAccessToken  String?  @db.Text
+  oauthRefreshToken String?  @db.Text
+  oauthScope        String?
+  oauthTokenExpiresAt DateTime?
+  oauthTokenType    String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  snaptradeUserId   String?
+  snaptradeUserSecret String?
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_snaptrade_items_on_family_id")
+  @@index([status], map: "index_snaptrade_items_on_status")
+  @@map("snaptrade_items")
+}
+
+model SnaptradeAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountNumber         String?
+  accountStatus         String?
+  accountType           String?
+  activitiesFetchPending Boolean @default(false)
+  brokerageName         String?
+  cashBalance           Decimal? @db.Decimal(19, 4)
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  institutionMetadata   Json?
+  lastActivitiesSync    DateTime?
+  lastHoldingsSync      DateTime?
+  name                  String?
+  provider              String?
+  rawActivitiesPayload  Json[]   @default([])
+  rawBalancesPayload    Json[]   @default([])
+  rawHoldingsPayload    Json[]   @default([])
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  snaptradeAccountId    String?
+  snaptradeAuthorizationId String?
+  snaptradeItemId       String   @db.Uuid
+  syncStartDate         DateTime?
+  updatedAt             DateTime @updatedAt
+
+  @@unique([snaptradeItemId, snaptradeAccountId], map: "index_snaptrade_accounts_on_item_and_snaptrade_account_id")
+  @@index([snaptradeItemId], map: "index_snaptrade_accounts_on_snaptrade_item_id")
+  @@map("snaptrade_accounts")
+}
+
+model SophtronItem {
+  id                        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessKey                 String
+  baseUrl                   String?
+  currentJobId              String?
+  currentJobSophtronAccountId String? @db.Uuid
+  customerId                String?
+  customerName              String?
+  familyId                  String   @db.Uuid
+  institutionColor          String?
+  institutionDomain         String?
+  institutionId             String?
+  institutionName           String?
+  institutionUrl            String?
+  jobStatus                 String?
+  lastConnectionError       String?  @db.Text
+  manualSync                Boolean  @default(false)
+  name                      String?
+  pendingAccountSetup       Boolean  @default(false)
+  rawCustomerPayload        Json?
+  rawInstitutionPayload     Json?
+  rawJobPayload             Json?
+  rawPayload                Json?
+  scheduledForDeletion      Boolean  @default(false)
+  status                    String   @default("good")
+  syncStartDate             DateTime?
+  updatedAt                 DateTime @updatedAt
+  userId                    String
+  userInstitutionId         String?
+
+  @@index([currentJobSophtronAccountId], map: "index_sophtron_items_on_current_job_sophtron_account_id")
+  @@index([customerId], map: "index_sophtron_items_on_customer_id")
+  @@index([familyId], map: "index_sophtron_items_on_family_id")
+  @@index([status], map: "index_sophtron_items_on_status")
+  @@index([userInstitutionId], map: "index_sophtron_items_on_user_institution_id")
+  @@map("sophtron_items")
+}
+
+model SophtronAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String
+  accountNumberMask     String?
+  accountStatus         String?
+  accountSubType        String?
+  accountType           String?
+  availableBalance      Decimal? @db.Decimal(19, 4)
+  balance               Decimal? @db.Decimal(19, 4)
+  currency              String?
+  customerId            String?
+  institutionMetadata   Json?
+  lastUpdated           DateTime?
+  manualSync            Boolean  @default(false)
+  memberId              String?
+  name                  String
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  sophtronItemId        String   @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  @@index([accountId], map: "index_sophtron_accounts_on_account_id")
+  @@unique([sophtronItemId, accountId], map: "idx_unique_sophtron_accounts_per_item")
+  @@index([sophtronItemId], map: "index_sophtron_accounts_on_sophtron_item_id")
+  @@map("sophtron_accounts")
+}
+
+model TradeRepublicItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now())
+  currency          String?
+  familyId          String   @db.Uuid
+  name              String?
+  newestEventId     String?
+  pendingAccountSetup Boolean @default(false)
+  pendingLoginState String?  @db.Text
+  phoneNumber       String?
+  scheduledForDeletion Boolean @default(false)
+  sessionBlob       String?  @db.Text
+  status            String   @default("good")
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_trade_republic_items_on_family_id")
+  @@index([status], map: "index_trade_republic_items_on_status")
+  @@map("trade_republic_items")
+}
+
+model TradeRepublicAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountType           String?
+  cashBalance           Decimal? @db.Decimal(19, 4)
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  holdingsSnapshotComplete Boolean @default(false)
+  kind                  String   @default("portfolio")
+  lastPositionsSync     DateTime?
+  name                  String?
+  rawPositionsPayload   Json[]   @default([])
+  rawTimelinePayload    Json[]   @default([])
+  tradeRepublicAccountId String?
+  tradeRepublicItemId   String   @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  @@unique([tradeRepublicItemId, kind], map: "idx_on_trade_republic_item_id_kind_3b60cc72fb")
+  @@unique([tradeRepublicItemId, tradeRepublicAccountId], map: "index_trade_republic_accounts_on_item_and_account_id")
+  @@index([tradeRepublicItemId], map: "index_trade_republic_accounts_on_trade_republic_item_id")
+  @@map("trade_republic_accounts")
+}
+
+model Trading212Item {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  apiKey            String?
+  apiSecret         String?
+  createdAt         DateTime @default(now())
+  currency          String?
+  environment       String   @default("live")
+  familyId          String   @db.Uuid
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstrumentsPayload Json[] @default([])
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_trading212_items_on_family_id")
+  @@index([status], map: "index_trading212_items_on_status")
+  @@map("trading212_items")
+}
+
+model Trading212Account {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountType           String?
+  cashBalance           Decimal? @db.Decimal(19, 4)
+  currency              String?
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  lastOrdersSync        DateTime?
+  lastPositionsSync     DateTime?
+  name                  String?
+  rawDividendsPayload   Json[]   @default([])
+  rawOrdersPayload      Json[]   @default([])
+  rawPositionsPayload   Json[]   @default([])
+  rawTransactionsPayload Json[]  @default([])
+  trading212AccountId   String?
+  trading212ItemId      String   @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  @@unique([trading212ItemId, trading212AccountId], map: "index_trading212_accounts_on_item_and_account_id")
+  @@index([trading212ItemId], map: "index_trading212_accounts_on_trading212_item_id")
+  @@map("trading212_accounts")
+}
+
+model UpItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accessToken       String?  @db.Text
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  institutionColor  String?
+  institutionDomain String?
+  institutionId     String?
+  institutionName   String?
+  institutionUrl    String?
+  name              String?
+  pendingAccountSetup Boolean @default(false)
+  rawInstitutionPayload Json?
+  rawPayload        Json?
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  updatedAt         DateTime @updatedAt
+
+  @@index([familyId], map: "index_up_items_on_family_id")
+  @@index([status], map: "index_up_items_on_status")
+  @@map("up_items")
+}
+
+model UpAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  accountId             String?
+  accountStatus         String?
+  accountType           String?
+  currency              String
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  ignored               Boolean  @default(false)
+  institutionMetadata   Json?
+  name                  String
+  ownershipType         String?
+  provider              String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  syncStartDate         DateTime?
+  upItemId              String   @db.Uuid
+  updatedAt             DateTime @updatedAt
+
+  @@index([accountId], map: "index_up_accounts_on_account_id")
+  @@unique([upItemId, accountId], map: "index_up_accounts_on_item_and_account_id")
+  @@index([upItemId], map: "index_up_accounts_on_up_item_id")
+  @@map("up_accounts")
+}
+
+model WiseItem {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  createdAt         DateTime @default(now())
+  familyId          String   @db.Uuid
+  importAllHistory  Boolean  @default(false)
+  name              String
+  pendingAccountSetup Boolean @default(false)
+  profileId         String
+  profileType       String
+  rawPayload        Json?
+  scaPrivateKey     String?  @db.Text
+  scheduledForDeletion Boolean @default(false)
+  status            String   @default("good")
+  syncStartDate     DateTime?
+  token             String?  @db.Text
+  updatedAt         DateTime @updatedAt
+
+  @@unique([familyId, profileId], map: "index_wise_items_on_family_id_and_profile_id")
+  @@index([familyId], map: "index_wise_items_on_family_id")
+  @@index([status], map: "index_wise_items_on_status")
+  @@map("wise_items")
+}
+
+model WiseAccount {
+  id                    String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  balanceId             String
+  currency              String
+  currentBalance        Decimal? @db.Decimal(19, 4)
+  name                  String?
+  rawPayload            Json?
+  rawTransactionsPayload Json?
+  reservedBalance       Decimal? @db.Decimal(19, 4)
+  updatedAt             DateTime @updatedAt
+  wiseItemId            String   @db.Uuid
+
+  @@unique([wiseItemId, balanceId], map: "index_wise_accounts_on_wise_item_id_and_balance_id")
+  @@index([wiseItemId], map: "index_wise_accounts_on_wise_item_id")
+  @@map("wise_accounts")
 }
