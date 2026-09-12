@@ -20,10 +20,10 @@ import {
   UpdateFamilySettingsDto,
 } from './dto/families.dto.js';
 import { FamilyEntity } from './entities/family.entity.js';
-import { CurrentFamily } from '@/common/decorators/current-family.decorator.js';
-import { CurrentUser } from '@/common/decorators/current-user.decorator.js';
-import type { AuthenticatedUser } from '@/common/types/authenticated-user.js';
-import { Public } from '@/common/decorators/public.decorator.js';
+import { CurrentFamily } from '../../common/decorators/current-family.decorator.js';
+import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
+import { Public } from '../../common/decorators/public.decorator.js';
 
 @ApiTags('families')
 @ApiBearerAuth()
