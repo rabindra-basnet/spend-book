@@ -10,7 +10,3 @@ coverage/
 .DS_Store
 prompt.md
 *.tsbuildinfo
-skills-lock.json
-.agents/
-.claude/
-.windsurf/
