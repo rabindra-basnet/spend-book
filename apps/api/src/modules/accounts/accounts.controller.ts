@@ -8,9 +8,9 @@ import {
 import { AccountsService } from './accounts.service.js';
 import { CreateAccountDto, UpdateAccountDto } from './dto/accounts.dto.js';
 import { AccountEntity } from './entities/account.entity.js';
-import { CurrentFamily } from '../../common/decorators/current-family.decorator.js';
-import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
-import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
+import { CurrentFamily } from '@/common/decorators/current-family.decorator.js';
+import { CurrentUser } from '@/common/decorators/current-user.decorator.js';
+import type { AuthenticatedUser } from '@/common/types/authenticated-user.js';
 
 @ApiTags('accounts')
 @ApiBearerAuth()
